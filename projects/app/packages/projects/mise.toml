@@ -1,0 +1,11 @@
+[tasks.check]
+run = "mise run typecheck && mise run test"
+
+[tasks.typecheck]
+run = "bun x tsgo --noEmit -p tsconfig.json"
+
+[tasks.test]
+run = "bun test"
+
+[tasks.coverage]
+run = "bun test --coverage --coverage-reporter=lcov --coverage-dir=coverage"

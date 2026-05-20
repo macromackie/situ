@@ -1,0 +1,15 @@
+category	source	expected
+casefold	HELLO WORLD	hello world
+casefold	CAFÉ AU LAIT	cafe au lait
+casefold	Über Cool	uber cool
+punctuation	red-blue/red,blue	red blue red blue
+punctuation	status:ready_for_review	status ready for review
+punctuation	ship_to=bob@example.com	ship to bob example com
+numbers	order 2 boxes	order two boxes
+numbers	room 10 shelf 3	room ten shelf three
+numbers	agent 4 picked 1 base	agent four picked one base
+spacing	too   many   spaces	too many spaces
+spacing	 padded value 	padded value
+spacing+casefold+punctuation	HELLO---WORLD!!	hello world
+casefold+punctuation+numbers+spacing	ORDER #2: CAFÉ-AU-LAIT	order two cafe au lait
+punctuation+numbers+spacing	build-4 branches	build four branches

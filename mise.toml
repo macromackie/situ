@@ -1,0 +1,252 @@
+[tools]
+bun = "1.3.14"
+typos = "1.46.1"
+actionlint = "1.7.12"
+
+[tasks.update]
+description = "Install dependencies and refresh the lockfile"
+run = "bun install"
+
+[tasks.format]
+description = "Format the repository"
+run = "bun x oxfmt . --write"
+
+[tasks."format:check"]
+description = "Check repository formatting"
+run = "bun x oxfmt . --check"
+
+[tasks.lint]
+description = "Lint TypeScript"
+run = "bun x oxlint . --deny-warnings --report-unused-disable-directives"
+
+[tasks."adrs:check"]
+description = "Validate active ADR metadata"
+run = "bun scripts/check_adrs.ts"
+
+[tasks.markdownlint]
+description = "Lint Markdown"
+run = "bun x markdownlint-cli2"
+
+[tasks.typos]
+description = "Check spelling"
+run = "typos --force-exclude"
+
+[tasks.actionlint]
+description = "Lint GitHub Actions workflow YAML"
+run = "actionlint"
+
+[tasks.fallow]
+description = "Check unused code and dependency graph policy"
+run = "bun x fallow check --config fallow.config.json"
+
+[tasks."fallow:audit"]
+description = "Audit changed files for dead code, duplication, and complexity"
+run = "bash scripts/fallow-audit.sh"
+
+[tasks."fallow:fix"]
+description = "Apply Fallow auto-fixes"
+run = "bun x fallow fix --config fallow.config.json"
+
+[tasks."fallow:baseline"]
+description = "Refresh Fallow analysis baselines"
+run = [
+  "bun x fallow dead-code --config fallow.config.json --save-baseline .fallow/dead-code-baseline.json",
+  "bun x fallow health --config fallow.config.json --save-baseline .fallow/health-baseline.json",
+  "bun x fallow dupes --config fallow.config.json --save-baseline .fallow/dupes-baseline.json",
+]
+
+[tasks.typecheck]
+description = "Typecheck every workspace source and test file"
+run = "bun x tsgo --noEmit -p tsconfig.json"
+
+[tasks.test]
+description = "Run Bun tests"
+run = "bun test"
+
+[tasks.coverage]
+description = "Run tests with coverage"
+run = "scripts/coverage.sh"
+
+[tasks.evals]
+description = "Run real LLM evals"
+run = "cd projects/evals && mise run evals"
+
+[tasks."e2e-tests"]
+description = "Run deterministic e2e tests"
+run = "cd projects/e2e-tests && mise run test"
+
+[tasks.check]
+description = "Run the full non-mutating local gate"
+run = [
+  "mise run format:check",
+  "mise run lint",
+  "mise run adrs:check",
+  "mise run markdownlint",
+  "mise run typos",
+  "mise run actionlint",
+  "mise run fallow",
+  "mise run typecheck",
+  "mise run test",
+]
+
+[tasks."app:check"]
+run = "cd projects/app && mise run check"
+
+[tasks."app:typecheck"]
+run = "cd projects/app && mise run typecheck"
+
+[tasks."app:test"]
+run = "cd projects/app && mise run test"
+
+[tasks."evals:check"]
+run = "cd projects/evals && mise run check"
+
+[tasks."evals:typecheck"]
+run = "cd projects/evals && mise run typecheck"
+
+[tasks."evals:test"]
+run = "cd projects/evals && mise run test"
+
+[tasks."e2e-tests:check"]
+run = "cd projects/e2e-tests && mise run check"
+
+[tasks."e2e-tests:typecheck"]
+run = "cd projects/e2e-tests && mise run typecheck"
+
+[tasks."e2e-tests:test"]
+run = "cd projects/e2e-tests && mise run test"
+
+[tasks."app:artifacts:check"]
+run = "cd projects/app/packages/artifacts && mise run check"
+
+[tasks."app:artifacts:typecheck"]
+run = "cd projects/app/packages/artifacts && mise run typecheck"
+
+[tasks."app:artifacts:test"]
+run = "cd projects/app/packages/artifacts && mise run test"
+
+[tasks."app:baselines:check"]
+run = "cd projects/app/packages/baselines && mise run check"
+
+[tasks."app:baselines:typecheck"]
+run = "cd projects/app/packages/baselines && mise run typecheck"
+
+[tasks."app:baselines:test"]
+run = "cd projects/app/packages/baselines && mise run test"
+
+[tasks."app:comments:check"]
+run = "cd projects/app/packages/comments && mise run check"
+
+[tasks."app:comments:typecheck"]
+run = "cd projects/app/packages/comments && mise run typecheck"
+
+[tasks."app:comments:test"]
+run = "cd projects/app/packages/comments && mise run test"
+
+[tasks."app:common:check"]
+run = "cd projects/app/packages/common && mise run check"
+
+[tasks."app:common:typecheck"]
+run = "cd projects/app/packages/common && mise run typecheck"
+
+[tasks."app:common:test"]
+run = "cd projects/app/packages/common && mise run test"
+
+[tasks."app:errors:check"]
+run = "cd projects/app/packages/errors && mise run check"
+
+[tasks."app:errors:typecheck"]
+run = "cd projects/app/packages/errors && mise run typecheck"
+
+[tasks."app:errors:test"]
+run = "cd projects/app/packages/errors && mise run test"
+
+[tasks."app:events:check"]
+run = "cd projects/app/packages/events && mise run check"
+
+[tasks."app:events:typecheck"]
+run = "cd projects/app/packages/events && mise run typecheck"
+
+[tasks."app:events:test"]
+run = "cd projects/app/packages/events && mise run test"
+
+[tasks."app:experiments:check"]
+run = "cd projects/app/packages/experiments && mise run check"
+
+[tasks."app:experiments:typecheck"]
+run = "cd projects/app/packages/experiments && mise run typecheck"
+
+[tasks."app:experiments:test"]
+run = "cd projects/app/packages/experiments && mise run test"
+
+[tasks."app:measurements:check"]
+run = "cd projects/app/packages/measurements && mise run check"
+
+[tasks."app:measurements:typecheck"]
+run = "cd projects/app/packages/measurements && mise run typecheck"
+
+[tasks."app:measurements:test"]
+run = "cd projects/app/packages/measurements && mise run test"
+
+[tasks."app:notifications:check"]
+run = "cd projects/app/packages/notifications && mise run check"
+
+[tasks."app:notifications:typecheck"]
+run = "cd projects/app/packages/notifications && mise run typecheck"
+
+[tasks."app:notifications:test"]
+run = "cd projects/app/packages/notifications && mise run test"
+
+[tasks."app:projects:check"]
+run = "cd projects/app/packages/projects && mise run check"
+
+[tasks."app:projects:typecheck"]
+run = "cd projects/app/packages/projects && mise run typecheck"
+
+[tasks."app:projects:test"]
+run = "cd projects/app/packages/projects && mise run test"
+
+[tasks."app:reports:check"]
+run = "cd projects/app/packages/reports && mise run check"
+
+[tasks."app:reports:typecheck"]
+run = "cd projects/app/packages/reports && mise run typecheck"
+
+[tasks."app:reports:test"]
+run = "cd projects/app/packages/reports && mise run test"
+
+[tasks."app:reviews:check"]
+run = "cd projects/app/packages/reviews && mise run check"
+
+[tasks."app:reviews:typecheck"]
+run = "cd projects/app/packages/reviews && mise run typecheck"
+
+[tasks."app:reviews:test"]
+run = "cd projects/app/packages/reviews && mise run test"
+
+[tasks."app:tasks:check"]
+run = "cd projects/app/packages/tasks && mise run check"
+
+[tasks."app:tasks:typecheck"]
+run = "cd projects/app/packages/tasks && mise run typecheck"
+
+[tasks."app:tasks:test"]
+run = "cd projects/app/packages/tasks && mise run test"
+
+[tasks."app:worktrees:check"]
+run = "cd projects/app/packages/worktrees && mise run check"
+
+[tasks."app:worktrees:typecheck"]
+run = "cd projects/app/packages/worktrees && mise run typecheck"
+
+[tasks."app:worktrees:test"]
+run = "cd projects/app/packages/worktrees && mise run test"
+
+[tasks."e2e-tests:fixtures:check"]
+run = "cd projects/e2e-tests/packages/fixtures && mise run check"
+
+[tasks."e2e-tests:fixtures:typecheck"]
+run = "cd projects/e2e-tests/packages/fixtures && mise run typecheck"
+
+[tasks."e2e-tests:fixtures:test"]
+run = "cd projects/e2e-tests/packages/fixtures && mise run test"

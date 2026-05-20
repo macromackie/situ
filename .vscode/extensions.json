@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "oxc.oxc-vscode",
+    "vanilla-extract.vscode-vanilla-extract",
+    "editorconfig.editorconfig",
+    "tamasfe.even-better-toml"
+  ]
+}

@@ -1,0 +1,6 @@
+[files]
+extend-exclude = ["node_modules", "dist", "coverage", "bun.lock", "projects/evals/workspaces/**"]
+
+[default.extend-words]
+Evalite = "Evalite"
+evalite = "evalite"

@@ -1,0 +1,197 @@
+name: Situ Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release version tag, shaped vX.Y.Z"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x64
+            runner: ubuntu-latest
+            situ_target: bun-linux-x64
+          - platform: linux-arm64
+            runner: ubuntu-24.04-arm
+            situ_target: bun-linux-arm64
+          - platform: darwin-arm64
+            runner: macos-14
+            situ_target: bun-darwin-arm64
+
+    steps:
+      - name: Resolve release ref
+        id: release_ref
+        env:
+          DISPATCH_TAG: ${{ inputs.tag }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            version="$DISPATCH_TAG"
+            checkout_ref="$DISPATCH_TAG"
+          else
+            version="$GITHUB_REF_NAME"
+            checkout_ref="$GITHUB_REF"
+          fi
+
+          if ! printf '%s\n' "$version" | grep -Eq '^v[0-9]+[.][0-9]+[.][0-9]+$'; then
+            echo "Release version must be shaped vX.Y.Z, got: $version" >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "checkout_ref=$checkout_ref" >> "$GITHUB_OUTPUT"
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release_ref.outputs.checkout_ref }}
+
+      - name: Install mise tools
+        uses: jdx/mise-action@v2
+        with:
+          cache: true
+          install: true
+
+      - name: Install Bun dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run local gate
+        run: mise run check
+
+      - name: Build release archive
+        env:
+          SITU_VERSION: ${{ steps.release_ref.outputs.version }}
+          SITU_PLATFORM: ${{ matrix.platform }}
+          SITU_TARGET: ${{ matrix.situ_target }}
+        run: config/scripts/build_release_assets.sh
+
+      - name: Verify archive install
+        env:
+          SITU_VERSION: ${{ steps.release_ref.outputs.version }}
+          SITU_RELEASE_TARBALL: ${{ github.workspace }}/dist/release/situ-${{ steps.release_ref.outputs.version }}-${{ matrix.platform }}.tar.gz
+          SITU_BIN_DIR: ${{ runner.temp }}/situ-bin
+          SITU_INSTALL_HOME: ${{ runner.temp }}/situ-install
+        run: |
+          config/scripts/install.sh
+          "$SITU_BIN_DIR/situ" --version
+          "$SITU_BIN_DIR/situ" doctor
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: situ-release-${{ matrix.platform }}
+          path: |
+            dist/release/situ-*.tar.gz
+            dist/release/checksums.txt
+
+  publish:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Resolve release version
+        id: version
+        env:
+          DISPATCH_TAG: ${{ inputs.tag }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            version="$DISPATCH_TAG"
+          else
+            version="$GITHUB_REF_NAME"
+          fi
+
+          if ! printf '%s\n' "$version" | grep -Eq '^v[0-9]+[.][0-9]+[.][0-9]+$'; then
+            echo "Release version must be shaped vX.Y.Z, got: $version" >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Download release archives
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/release-artifacts
+
+      - name: Collect release files
+        run: |
+          mkdir -p dist/release
+          find dist/release-artifacts -name 'situ-*.tar.gz' -exec cp {} dist/release/ \;
+          cd dist/release
+          sha256sum situ-*.tar.gz > checksums.txt
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ steps.version.outputs.version }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/release/* --clobber
+          else
+            gh release create "$tag" dist/release/* --verify-tag --title "$tag" --generate-notes
+          fi
+
+  verify-install:
+    name: Verify published install ${{ matrix.platform }}
+    needs: publish
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x64
+            runner: ubuntu-latest
+          - platform: linux-arm64
+            runner: ubuntu-24.04-arm
+          - platform: darwin-arm64
+            runner: macos-14
+
+    steps:
+      - name: Resolve release version
+        id: version
+        env:
+          DISPATCH_TAG: ${{ inputs.tag }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            version="$DISPATCH_TAG"
+          else
+            version="$GITHUB_REF_NAME"
+          fi
+
+          if ! printf '%s\n' "$version" | grep -Eq '^v[0-9]+[.][0-9]+[.][0-9]+$'; then
+            echo "Release version must be shaped vX.Y.Z, got: $version" >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install from published GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SITU_RELEASE_REPO: ${{ github.repository }}
+          SITU_INSTALL_HOME: ${{ runner.temp }}/situ-install
+          SITU_BIN_DIR: ${{ runner.temp }}/situ-bin
+        run: |
+          gh api -H "Accept: application/vnd.github.raw" \
+            repos/${{ github.repository }}/contents/config/scripts/install.sh \
+            | sh -s -- "${{ steps.version.outputs.version }}"
+
+          "$SITU_BIN_DIR/situ" --version
+          "$SITU_BIN_DIR/situ" doctor

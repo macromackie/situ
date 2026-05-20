@@ -1,0 +1,28 @@
+name: Check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  check:
+    name: mise run check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install mise tools
+        uses: jdx/mise-action@v2
+        with:
+          cache: true
+          install: true
+
+      - name: Install Bun dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run local gate
+        run: mise run check

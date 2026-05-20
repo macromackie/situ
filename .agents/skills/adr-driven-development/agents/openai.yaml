@@ -1,0 +1,7 @@
+interface:
+  display_name: "ADR-Driven Development"
+  short_description: "ADR-first dev with subagent checks"
+  default_prompt: "Use $adr-driven-development for this Situ change."
+
+policy:
+  allow_implicit_invocation: true

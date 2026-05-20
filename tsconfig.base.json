@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "jsx": "react-jsx",
+    "types": ["bun"],
+    "paths": {
+      "@situ/app": ["./projects/app/src/index.ts"],
+      "@situ/artifacts": ["./projects/app/packages/artifacts/src/index.ts"],
+      "@situ/comments": ["./projects/app/packages/comments/src/index.ts"],
+      "@situ/common": ["./projects/app/packages/common/src/index.ts"],
+      "@situ/errors": ["./projects/app/packages/errors/src/index.ts"],
+      "@situ/events": ["./projects/app/packages/events/src/index.ts"],
+      "@situ/experiments": ["./projects/app/packages/experiments/src/index.ts"],
+      "@situ/measurements": ["./projects/app/packages/measurements/src/index.ts"],
+      "@situ/notifications": ["./projects/app/packages/notifications/src/index.ts"],
+      "@situ/projects": ["./projects/app/packages/projects/src/index.ts"],
+      "@situ/reports": ["./projects/app/packages/reports/src/index.ts"],
+      "@situ/reports-ui": ["./projects/app/packages/reports-ui/src/index.ts"],
+      "@situ/reviews": ["./projects/app/packages/reviews/src/index.ts"],
+      "@situ/tasks": ["./projects/app/packages/tasks/src/index.ts"],
+      "@situ/worktrees": ["./projects/app/packages/worktrees/src/index.ts"],
+      "@situ/fixtures": ["./projects/e2e-tests/packages/fixtures/src/index.ts"]
+    }
+  }
+}

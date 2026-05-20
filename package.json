@@ -1,0 +1,43 @@
+{
+  "name": "situ",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": [
+    "projects/app",
+    "projects/app/packages/*",
+    "projects/evals",
+    "projects/evals/packages/*",
+    "projects/e2e-tests",
+    "projects/e2e-tests/packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "check": "mise run check",
+    "format": "oxfmt . --write",
+    "format:check": "oxfmt . --check",
+    "lint": "oxlint . --deny-warnings --report-unused-disable-directives",
+    "adrs:check": "bun scripts/check_adrs.ts",
+    "markdownlint": "markdownlint-cli2",
+    "typos": "typos --force-exclude",
+    "actionlint": "mise run actionlint",
+    "fallow": "fallow check --config fallow.config.json",
+    "fallow:audit": "bash scripts/fallow-audit.sh",
+    "fallow:fix": "fallow fix --config fallow.config.json",
+    "fallow:baseline": "mise run fallow:baseline",
+    "typecheck": "tsgo --noEmit -p tsconfig.json",
+    "test": "bun test",
+    "coverage": "scripts/coverage.sh",
+    "e2e-tests": "cd projects/e2e-tests && mise run test",
+    "evals": "cd projects/evals && mise run evals"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "@typescript/native-preview": "7.0.0-dev.20260513.1",
+    "fallow": "2.73.0",
+    "lefthook": "2.1.6",
+    "markdownlint-cli2": "0.22.1",
+    "oxfmt": "0.49.0",
+    "oxlint": "1.64.0"
+  },
+  "packageManager": "bun@1.3.14"
+}

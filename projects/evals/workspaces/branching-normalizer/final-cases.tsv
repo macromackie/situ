@@ -1,0 +1,11 @@
+category	source	expected
+casefold	NAÏVE BAYES	naive bayes
+casefold	Crème Brûlée	creme brulee
+punctuation	alpha/beta_gamma	alpha beta gamma
+punctuation	merge:worker-2,worker-3	merge worker two worker three
+numbers	rev 12 scored 8	rev twelve scored eight
+numbers	keep 3 of 4 changes	keep three of four changes
+spacing	line    with    space	line with space
+casefold+punctuation+spacing	CAFÉ---OWNER!!	cafe owner
+casefold+punctuation+numbers+spacing	TRY #4 / BRANCH 2	try four branch two
+punctuation+numbers+spacing	pick-3-good-commits	pick three good commits

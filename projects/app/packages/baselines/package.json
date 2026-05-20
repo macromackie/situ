@@ -1,0 +1,19 @@
+{
+  "name": "@situ/baselines",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check": "mise run check",
+    "typecheck": "tsgo --noEmit -p tsconfig.json",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@situ/common": "workspace:*",
+    "@situ/errors": "workspace:*"
+  }
+}

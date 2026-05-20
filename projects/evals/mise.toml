@@ -1,0 +1,14 @@
+[tasks.check]
+run = "mise run typecheck"
+
+[tasks.typecheck]
+run = "bun x tsgo --noEmit -p tsconfig.json"
+
+[tasks.test]
+run = "bun src/run.ts"
+
+[tasks.coverage]
+run = "mise run typecheck"
+
+[tasks.evals]
+run = "bun src/run.ts"
