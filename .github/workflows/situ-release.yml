@@ -56,7 +56,7 @@ jobs:
           echo "checkout_ref=$checkout_ref" >> "$GITHUB_OUTPUT"
 
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ steps.release_ref.outputs.checkout_ref }}
 
@@ -65,7 +65,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y expect
 
       - name: Install mise tools
-        uses: jdx/mise-action@v2
+        uses: jdx/mise-action@v4
         with:
           cache: true
           install: true
@@ -95,7 +95,7 @@ jobs:
           "$SITU_BIN_DIR/situ" doctor
 
       - name: Upload release archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: situ-release-${{ matrix.platform }}
           path: |
@@ -129,7 +129,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Download release archives
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist/release-artifacts
 
