@@ -20,6 +20,13 @@ import { formatCliError } from "./format.js";
 import { findHelpPathForInvocation, formatCliHelp, rootHelpText } from "./help.js";
 import { parseSituCliInvocation } from "./parser.js";
 import { runbookText } from "./runbook.js";
+import {
+  createDefaultSelfUpdateDeps,
+  maybePromptForUpdate,
+  runSelfUpdateCommand,
+  runSelfUpdateFiniteCommand,
+  type SelfUpdateDeps,
+} from "./self-update.js";
 import type {
   MainSituCliInput,
   RunSituCliInput,
@@ -66,6 +73,12 @@ export async function mainSituCli(input: MainSituCliInput = {}): Promise<number>
     });
   let outputMode: SituCliOutputMode = "text";
   let result: SituCliResult;
+  let promptInvocation: SituCliInvocation | undefined;
+
+  const selfUpdateCommandDeps: SelfUpdateDeps = {
+    ...createDefaultSelfUpdateDeps(writeStdout, writeStderr),
+    ...input.selfUpdateDeps,
+  };
 
   try {
     const invocation = parseSituCliInvocation({
@@ -94,6 +107,8 @@ export async function mainSituCli(input: MainSituCliInput = {}): Promise<number>
         stdout: "",
         stderr: "",
       };
+    } else if (invocation.command === "self-update") {
+      result = await runSelfUpdateCommand({ invocation, deps: selfUpdateCommandDeps });
     } else {
       result = await runSituCli({
         args,
@@ -101,6 +116,7 @@ export async function mainSituCli(input: MainSituCliInput = {}): Promise<number>
         environment,
         cwd: input.cwd,
       });
+      promptInvocation = invocation;
     }
   } catch (error) {
     result = formatCaughtCliError({
@@ -115,6 +131,24 @@ export async function mainSituCli(input: MainSituCliInput = {}): Promise<number>
 
   if (result.stderr.length > 0) {
     writeStderr(result.stderr);
+  }
+
+  // After a normal product command, offer an update when eligible (TTY-gated and
+  // throttled). This must never change the command's exit code or break it.
+  if (promptInvocation !== undefined) {
+    try {
+      await maybePromptForUpdate({
+        invocation: promptInvocation,
+        stdoutIsTty: input.stdoutIsTty ?? process.stdout.isTTY === true,
+        stdinIsTty: input.stdinIsTty ?? process.stdin.isTTY === true,
+        deps: {
+          ...createDefaultSelfUpdateDeps(writeStderr, writeStderr),
+          ...input.selfUpdateDeps,
+        },
+      });
+    } catch {
+      // An update check must never affect the command outcome.
+    }
   }
 
   return result.exitCode;
@@ -188,6 +222,9 @@ async function runSituCliInvocation(invocation: SituCliInvocation): Promise<Situ
       case "runbook":
         assertNoCommandArgs(invocation);
         return formatRunbook();
+
+      case "self-update":
+        return runSelfUpdateFiniteCommand({ invocation });
 
       case "serve":
         return runServeFiniteCommand({ invocation });

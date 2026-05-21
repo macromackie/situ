@@ -1,5 +1,6 @@
 import type { SerializedError } from "@situ/errors";
 import type { SituHttpServer, StartSituHttpServerInput } from "../http/server.js";
+import type { SelfUpdateDeps } from "./self-update.js";
 
 export type SituCliOutputMode = "text" | "json";
 
@@ -19,6 +20,9 @@ export type MainSituCliInput = {
   readonly writeStderr?: (text: string) => void;
   readonly waitForShutdown?: (server: SituHttpServer) => Promise<void>;
   readonly startHttpServer?: (input?: StartSituHttpServerInput) => SituHttpServer;
+  readonly selfUpdateDeps?: Partial<SelfUpdateDeps>;
+  readonly stdoutIsTty?: boolean;
+  readonly stdinIsTty?: boolean;
 };
 
 export type SituCliResult = {

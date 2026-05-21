@@ -16,6 +16,7 @@ Commands:
   version   Print the Situ CLI version.
   doctor    Check local CLI configuration without mutating state.
   runbook   Print the operating runbook for autoresearch runs.
+  self-update  Update situ to the latest release.
   serve     Start the local Situ HTTP server.
   artifacts  Manage artifact records.
   baselines  Manage baseline records.
@@ -63,6 +64,16 @@ Check local CLI configuration without mutating state.
 
 Print the operating runbook for autoresearch runs. Read-only: prints plain text,
 ignores --json, and never opens the database.
+`,
+  ],
+  [
+    "self-update",
+    `Usage: situ self-update [--check]
+
+Update situ to the latest GitHub release by re-running the installer.
+  --check   Report whether a newer release is available without installing it.
+
+Respects SITU_RELEASE_REPO, SITU_INSTALL_HOME, and SITU_BIN_DIR.
 `,
   ],
   [

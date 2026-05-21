@@ -33,6 +33,7 @@ Commands:
   version   Print the Situ CLI version.
   doctor    Check local CLI configuration without mutating state.
   runbook   Print the operating runbook for autoresearch runs.
+  self-update  Update situ to the latest release.
   serve     Start the local Situ HTTP server.
   artifacts  Manage artifact records.
   baselines  Manage baseline records.
@@ -749,6 +750,74 @@ test("rejects extra args after the runbook command", async () => {
     stdout: "",
     stderr: "Error [validation]: Command runbook does not accept arguments: extra\n",
   });
+});
+
+test("runSituCli validates self-update but does not run it", async () => {
+  expect(await runSituCli({ args: ["self-update"], environment })).toEqual({
+    exitCode: 1,
+    stdout: "",
+    stderr: "Error [validation]: Command self-update must be run through mainSituCli.\n",
+  });
+});
+
+test("prints self-update usage for both help entrypoints", async () => {
+  const usage = `Usage: situ self-update [--check]
+
+Update situ to the latest GitHub release by re-running the installer.
+  --check   Report whether a newer release is available without installing it.
+
+Respects SITU_RELEASE_REPO, SITU_INSTALL_HOME, and SITU_BIN_DIR.
+`;
+  expect(await runSituCli({ args: ["self-update", "--help"], environment })).toEqual({
+    exitCode: 0,
+    stderr: "",
+    stdout: usage,
+  });
+  expect(await runSituCli({ args: ["help", "self-update"], environment })).toEqual({
+    exitCode: 0,
+    stderr: "",
+    stdout: usage,
+  });
+});
+
+test("mainSituCli self-update is a no-op on the latest release", async () => {
+  const out: string[] = [];
+  const exitCode = await mainSituCli({
+    args: ["self-update"],
+    version: "v0.0.2",
+    environment,
+    writeStdout: (text) => out.push(text),
+    writeStderr: () => {},
+    selfUpdateDeps: { fetchLatestVersion: async () => "v0.0.2" },
+    stdoutIsTty: false,
+    stdinIsTty: false,
+  });
+  expect(exitCode).toBe(0);
+  expect(out.join("")).toContain("situ v0.0.2 is already the latest release.");
+});
+
+test("mainSituCli self-update installs a newer release through the injected installer", async () => {
+  const out: string[] = [];
+  const installed: string[] = [];
+  const exitCode = await mainSituCli({
+    args: ["self-update"],
+    version: "v0.0.1",
+    environment,
+    writeStdout: (text) => out.push(text),
+    writeStderr: () => {},
+    selfUpdateDeps: {
+      fetchLatestVersion: async () => "v0.0.2",
+      runInstaller: async (version) => {
+        installed.push(version);
+        return 0;
+      },
+    },
+    stdoutIsTty: false,
+    stdinIsTty: false,
+  });
+  expect(exitCode).toBe(0);
+  expect(installed).toEqual(["v0.0.2"]);
+  expect(out.join("")).toContain("situ updated to v0.0.2");
 });
 
 test("uses the last parsed database path option", async () => {

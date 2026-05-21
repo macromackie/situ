@@ -32,6 +32,7 @@ Commands:
   version   Print the Situ CLI version.
   doctor    Check local CLI configuration without mutating state.
   runbook   Print the operating runbook for autoresearch runs.
+  self-update  Update situ to the latest release.
   serve     Start the local Situ HTTP server.
   artifacts  Manage artifact records.
   baselines  Manage baseline records.
@@ -54,7 +55,7 @@ The emitted help output appends one trailing newline to this text.
 
 The command list order is intentional:
 
-1. base commands: `help`, `version`, `doctor`, `runbook`
+1. base commands: `help`, `version`, `doctor`, `runbook`, `self-update`
 2. runtime adapter command: `serve`
 3. product command groups in alphabetical order
 

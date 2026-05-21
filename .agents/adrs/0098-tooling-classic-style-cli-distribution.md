@@ -113,8 +113,9 @@ workspace tarball.
 
 ## Boundaries
 
-This ADR does not add a `situ self-update` command. The current active CLI
-surface remains the source of truth for product commands.
+This ADR does not add a `situ self-update` command; ADR 0105 adds it later and
+reuses this installer as the update mechanism. The current active CLI surface
+otherwise remains the source of truth for product commands.
 
 This ADR does not add npm publishing, Homebrew formulas, shell completions,
 Windows builds, prerelease tag support, hosted update services, or model
