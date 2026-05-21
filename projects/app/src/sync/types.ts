@@ -260,7 +260,9 @@ export type ReplicachePatchOperation =
     };
 
 export type ReplicachePullResponse = {
-  readonly cookie: null;
+  // Fingerprint of the full reset state. Replicache ignores a pull whose cookie
+  // equals the client's, so this must advance whenever any record changes.
+  readonly cookie: JsonValue;
   readonly lastMutationIDChanges: Record<string, number>;
   readonly patch: readonly ReplicachePatchOperation[];
 };

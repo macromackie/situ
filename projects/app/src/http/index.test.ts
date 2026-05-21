@@ -410,7 +410,7 @@ test("processes Replicache pull requests", async () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("application/json; charset=utf-8");
     expect(JSON.parse(text)).toEqual({
-      cookie: null,
+      cookie: expect.any(String),
       lastMutationIDChanges: {
         "client-1": 2,
       },

@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type { Database } from "bun:sqlite";
 
 import { InternalError } from "@situ/errors";
@@ -164,7 +166,7 @@ export function processReplicachePull(input: ProcessReplicachePullInput): Replic
       }
 
       return {
-        cookie: null,
+        cookie: computePullCookie(patch),
         lastMutationIDChanges: listLastMutationIdChanges({
           database,
           clientGroupID: input.pullRequest.clientGroupID,
@@ -173,6 +175,18 @@ export function processReplicachePull(input: ProcessReplicachePullInput): Replic
       };
     },
   });
+}
+
+/**
+ * Fingerprints the full reset patch so the pull cookie advances whenever any
+ * record changes and stays stable otherwise. Replicache discards a pull whose
+ * cookie equals the client's current cookie, so a constant cookie (e.g. always
+ * `null`) would never deliver records to the browser.
+ */
+function computePullCookie(patch: readonly ReplicachePatchOperation[]): string {
+  const puts = patch.filter((operation) => operation.op === "put");
+  const fingerprint = createHash("sha1").update(JSON.stringify(puts)).digest("hex");
+  return `${puts.length}:${fingerprint}`;
 }
 
 function toJsonValue(value: unknown): JsonValue {

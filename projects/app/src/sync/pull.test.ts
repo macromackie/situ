@@ -457,7 +457,7 @@ test("builds a full reset patch for projects, tasks, baselines, experiments, evi
     });
 
     expect(result).toEqual({
-      cookie: null,
+      cookie: expect.any(String),
       lastMutationIDChanges: {
         "client-1": 3,
         "client-2": 8,
@@ -969,7 +969,7 @@ test("returns clear-only patch and empty mutation changes for an empty product d
     });
 
     expect(result).toEqual({
-      cookie: null,
+      cookie: expect.any(String),
       lastMutationIDChanges: {},
       patch: [{ op: "clear" }],
     });
@@ -1033,4 +1033,33 @@ test("validates pull request envelopes", () => {
       schemaVersion: "schema-1",
     }),
   ).toThrow(ValidationError);
+});
+
+test("pull cookie advances when records change and stays stable otherwise", () => {
+  const database = openAppDatabase({ databasePath: memoryDatabasePath });
+
+  try {
+    const emptyCookie = processReplicachePull({ database, pullRequest: pull() }).cookie;
+    expect(typeof emptyCookie).toBe("string");
+
+    createAppActionContext({ database }).repositories.projects.create({
+      id: "project_cookie" as SituId<"project">,
+      name: "Cookie",
+      repositoryPath: "/tmp/cookie",
+      goalMarkdown: "Advance the pull cookie.",
+      createdBy: {
+        actorKind: "human",
+        actorId: "scott",
+      },
+      now: "2026-05-21T00:00:00.000Z",
+    });
+
+    const afterCreate = processReplicachePull({ database, pullRequest: pull() }).cookie;
+    expect(afterCreate).not.toBe(emptyCookie);
+
+    const repeat = processReplicachePull({ database, pullRequest: pull() }).cookie;
+    expect(repeat).toBe(afterCreate);
+  } finally {
+    database.close();
+  }
 });
