@@ -65,11 +65,17 @@ Release archives contain:
 
 ```text
 bin/situ
+assets/app.js
 README.md
 MANIFEST
 ```
 
 `bin/situ` is the single Bun-compiled CLI executable and must be executable.
+
+`assets/app.js` is the pre-built live UI browser bundle. A compiled standalone
+binary cannot run `Bun.build` at request time because its source lives in an
+embedded virtual filesystem, so `situ serve` serves this file from
+`$SITU_INSTALL_HOME/versions/<version>/assets/app.js`.
 
 The installer extracts each version to:
 
@@ -104,6 +110,9 @@ installing the local tarball and running:
 situ --version
 situ doctor
 ```
+
+It also starts `situ serve` and confirms `GET /assets/app.js` returns 200, so a
+missing or broken live UI bundle fails the build before anything is published.
 
 After publishing the GitHub Release, the workflow also verifies installation
 from the published release on each platform by fetching `install.sh` through

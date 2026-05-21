@@ -97,11 +97,11 @@ test("serves the live report shell without opening the database", async () => {
     });
 
     expect(root.response.status).toBe(200);
-    expect(root.text).toContain('<script type="module" src="/assets/live-report.js"></script>');
+    expect(root.text).toContain('<script type="module" src="/assets/app.js"></script>');
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
     expect(text).toContain('<div id="root">');
-    expect(text).toContain('<script type="module" src="/assets/live-report.js"></script>');
+    expect(text).toContain('<script type="module" src="/assets/app.js"></script>');
     expect(existsSync(dirname(databasePath))).toBe(false);
     expect(existsSync(databasePath)).toBe(false);
   } finally {
@@ -112,7 +112,7 @@ test("serves the live report shell without opening the database", async () => {
 test("serves the live report browser bundle", async () => {
   const { response, text } = await responseText({
     method: "GET",
-    path: "/assets/live-report.js",
+    path: "/assets/app.js",
   });
 
   expect(response.status).toBe(200);

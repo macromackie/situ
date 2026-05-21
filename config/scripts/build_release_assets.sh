@@ -77,6 +77,15 @@ bun build \
 chmod 755 "$binary_path"
 cp README.md "$work_dir/README.md"
 
+# Pre-build the live UI browser bundle. The compiled CLI cannot run Bun.build at
+# request time (its source lives in an embedded VFS), so `situ serve` ships this
+# bundle and serves it from disk. Keep the name in sync with live-ui/server.ts.
+mkdir -p "$work_dir/assets"
+bun build "$repo_root/projects/app/src/live-ui/main.tsx" \
+  --target=browser \
+  --format=esm \
+  --outfile "$work_dir/assets/app.js"
+
 cat > "$work_dir/MANIFEST" <<EOF
 situ-version: $SITU_VERSION
 situ-platform: $SITU_PLATFORM
@@ -86,7 +95,7 @@ situ-build-date: $build_date
 situ-archive: $archive_name
 EOF
 
-tar -czf "$archive_path" -C "$work_dir" bin README.md MANIFEST
+tar -czf "$archive_path" -C "$work_dir" bin assets README.md MANIFEST
 
 cd "$release_dir"
 sha256_file "$archive_name" > checksums.txt
