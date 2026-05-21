@@ -57,7 +57,7 @@ else
   version_target=latest
 fi
 
-release_repo=${SITU_RELEASE_REPO:-scott-goodfire/situ}
+release_repo=${SITU_RELEASE_REPO:-macromackie/situ}
 
 detect_platform() {
   os=$(uname -s)

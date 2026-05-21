@@ -39,7 +39,7 @@ argument, then `latest`. Explicit versions must be strict `vX.Y.Z`; local
 artifact smoke tests may use `0.0.0-dev`. `SITU_RELEASE_TARBALL` requires an
 explicit non-`latest` version target.
 
-`SITU_RELEASE_REPO` defaults to `scott-goodfire/situ`.
+`SITU_RELEASE_REPO` defaults to `macromackie/situ`.
 
 The installer detects the current platform token using the same release tokens
 as ADR 0007:

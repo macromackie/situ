@@ -30,14 +30,14 @@ Released CLI builds are published as GitHub Release archives for
 `darwin-arm64`, `linux-x64`, and `linux-arm64`.
 
 ```text
-curl -fsSL https://raw.githubusercontent.com/scott-goodfire/situ/main/config/scripts/install.sh | sh -s -- vX.Y.Z
+curl -fsSL https://raw.githubusercontent.com/macromackie/situ/main/config/scripts/install.sh | sh -s -- vX.Y.Z
 ```
 
 For private repository access, the same installer can be fetched through `gh`:
 
 ```text
 gh api -H "Accept: application/vnd.github.raw" \
-  repos/scott-goodfire/situ/contents/config/scripts/install.sh | sh -s -- vX.Y.Z
+  repos/macromackie/situ/contents/config/scripts/install.sh | sh -s -- vX.Y.Z
 ```
 
 The installer writes versioned files under `$SITU_INSTALL_HOME` or
