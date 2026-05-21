@@ -100,14 +100,16 @@ FROM _situ_migrations
 WHERE id IN (
   '0001-initial-package-schema',
   '0002-replicache-client-mutations',
-  '0003-baselines-and-measurement-targets'
+  '0003-baselines-and-measurement-targets',
+  '0004-briefings',
+  '0005-live-presentation-records'
 )
 `,
       )
       .get();
 
     expect(foreignKeys?.foreign_keys).toBe(1);
-    expect(migrationCount?.count).toBe(3);
+    expect(migrationCount?.count).toBe(5);
     expect(
       database
         .query<CountRow, []>("SELECT COUNT(*) AS count FROM replicache_client_mutations")
@@ -151,7 +153,7 @@ test("applies app migrations idempotently", () => {
       .query<CountRow, []>("SELECT COUNT(*) AS count FROM _situ_migrations")
       .get();
 
-    expect(migrationCount?.count).toBe(3);
+    expect(migrationCount?.count).toBe(5);
   } finally {
     database.close();
   }
@@ -237,11 +239,15 @@ test("keeps app schema fragments in primitive order", () => {
     "measurements",
     "artifacts",
     "reports",
+    "briefings",
+    "live",
     "reviews",
   ]);
   expect(appSchemaMigrations.map((migration) => migration.id)).toEqual([
     "0001-initial-package-schema",
     "0002-replicache-client-mutations",
     "0003-baselines-and-measurement-targets",
+    "0004-briefings",
+    "0005-live-presentation-records",
   ]);
 });

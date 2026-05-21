@@ -34,6 +34,7 @@ Expected imports:
 - `createEventRepository` and `EventRepository` from `@situ/events`
 - `createNotificationRepository` and `NotificationRepository` from
   `@situ/notifications`
+- `createBaselineRepository` and `BaselineRepository` from `@situ/baselines`
 - `createExperimentRepository` and `ExperimentRepository` from
   `@situ/experiments`
 - `createMeasurementRepository` and `MeasurementRepository` from
@@ -41,6 +42,8 @@ Expected imports:
 - `createArtifactRepository` and `ArtifactRepository` from `@situ/artifacts`
 - `createReviewRepository` and `ReviewRepository` from `@situ/reviews`
 - `createReportRepository` and `ReportRepository` from `@situ/reports`
+- `createBriefingRepository` and `BriefingRepository` from `@situ/briefings`
+- `createLiveRepository` and `LiveRepository` from `@situ/live`
 - `withTransaction` from `../db/index.js`
 
 The app database transaction helper has this signature:
@@ -63,11 +66,14 @@ export type AppRepositories = {
   readonly comments: CommentRepository;
   readonly events: EventRepository;
   readonly notifications: NotificationRepository;
+  readonly baselines: BaselineRepository;
   readonly experiments: ExperimentRepository;
   readonly measurements: MeasurementRepository;
   readonly artifacts: ArtifactRepository;
   readonly reviews: ReviewRepository;
   readonly reports: ReportRepository;
+  readonly briefings: BriefingRepository;
+  readonly live: LiveRepository;
 };
 
 export type CreateAppRepositoriesInput = {
@@ -111,17 +117,20 @@ Repository bundle keys are lower-case plural primitive names:
 - `comments`
 - `events`
 - `notifications`
+- `baselines`
 - `experiments`
 - `measurements`
 - `artifacts`
 - `reviews`
 - `reports`
+- `briefings`
+- `live`
 
 The bundle must not omit a primitive package that has a repository.
 
-The ten repository keys listed above are the complete required set for this
-ADR. If a later ADR adds another primitive repository, that later ADR should
-update or extend the action context contract.
+The repository keys listed above are the complete required set for this ADR. If
+a later ADR adds another primitive repository, that later ADR should update or
+extend the action context contract.
 
 The action context should not wrap, subclass, memoize globally, or alter
 repository methods. It returns the primitive repositories directly.

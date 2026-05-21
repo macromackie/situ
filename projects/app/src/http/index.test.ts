@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { ErrorKind } from "@situ/errors";
 import { handleSituHttpRequest, openAppDatabase } from "@situ/app";
@@ -76,6 +76,70 @@ test("returns health without opening or validating the database", async () => {
   expect(response.status).toBe(200);
   expect(response.headers.get("content-type")).toBe("application/json; charset=utf-8");
   expect(text).toBe('{"ok":true}\n');
+});
+
+test("serves the live report shell without opening the database", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "situ-http-live-shell-"));
+  const databasePath = join(directory, "nested", "situ.db");
+
+  try {
+    const root = await responseText({
+      method: "GET",
+      path: "/",
+      databasePath,
+      environment: {},
+    });
+    const { response, text } = await responseText({
+      method: "GET",
+      path: "/projects/project_123",
+      databasePath,
+      environment: {},
+    });
+
+    expect(root.response.status).toBe(200);
+    expect(root.text).toContain('<script type="module" src="/assets/live-report.js"></script>');
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
+    expect(text).toContain('<div id="root">');
+    expect(text).toContain('<script type="module" src="/assets/live-report.js"></script>');
+    expect(existsSync(dirname(databasePath))).toBe(false);
+    expect(existsSync(databasePath)).toBe(false);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("serves the live report browser bundle", async () => {
+  const { response, text } = await responseText({
+    method: "GET",
+    path: "/assets/live-report.js",
+  });
+
+  expect(response.status).toBe(200);
+  expect(response.headers.get("content-type")).toBe("application/javascript; charset=utf-8");
+  expect(text).toContain("situ-live-report");
+});
+
+test("returns 405 and Allow for unsupported live UI methods", async () => {
+  const { response, text } = await responseText({
+    method: "POST",
+    path: "/projects/project_123",
+  });
+
+  expect(response.status).toBe(405);
+  expect(response.headers.get("allow")).toBe("GET");
+  expect(JSON.parse(text)).toEqual({
+    error: {
+      kind: ErrorKind.Validation,
+      message: "HTTP method is not supported for this path.",
+      details: {
+        method: "POST",
+        path: "/projects/project_123",
+        allowedMethods: ["GET"],
+      },
+    },
+  });
+  expect(text.endsWith("\n")).toBe(true);
 });
 
 test("ignores query strings for health route matching", async () => {

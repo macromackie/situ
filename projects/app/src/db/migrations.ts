@@ -2,6 +2,8 @@ import type { Database } from "bun:sqlite";
 
 import { nowTimestamp } from "@situ/common";
 import { baselinesSchemaFragment } from "@situ/baselines";
+import { briefingsSchemaFragment } from "@situ/briefings";
+import { liveSchemaFragment } from "@situ/live";
 import { createMeasurementsTableStatement, measurementsSchemaFragment } from "@situ/measurements";
 
 import { appSchemaFragments, schemaStatementsFromFragments } from "./schema.js";
@@ -51,6 +53,14 @@ export const appSchemaMigrations = [
   {
     id: "0003-baselines-and-measurement-targets",
     apply: applyBaselinesAndMeasurementTargetsMigration,
+  },
+  {
+    id: "0004-briefings",
+    statements: briefingsSchemaFragment.statements,
+  },
+  {
+    id: "0005-live-presentation-records",
+    statements: liveSchemaFragment.statements,
   },
 ] as const satisfies readonly SchemaMigration[];
 

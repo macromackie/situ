@@ -1,9 +1,11 @@
 import { resolveDatabasePath } from "../db/index.js";
 import { runArtifactsCommand } from "./commands/artifacts.js";
 import { runBaselinesCommand } from "./commands/baselines.js";
+import { runBriefingsCommand } from "./commands/briefings.js";
 import { runCommentsCommand } from "./commands/comments.js";
 import { runEventsCommand } from "./commands/events.js";
 import { runExperimentsCommand } from "./commands/experiments.js";
+import { runLiveCommand } from "./commands/live.js";
 import { runMeasurementsCommand } from "./commands/measurements.js";
 import { runNotificationsCommand } from "./commands/notifications.js";
 import { runProjectsCommand } from "./commands/projects.js";
@@ -191,6 +193,9 @@ async function runSituCliInvocation(invocation: SituCliInvocation): Promise<Situ
       case "baselines":
         return runBaselinesCommand({ invocation });
 
+      case "briefings":
+        return runBriefingsCommand({ invocation });
+
       case "comments":
         return runCommentsCommand({ invocation });
 
@@ -199,6 +204,9 @@ async function runSituCliInvocation(invocation: SituCliInvocation): Promise<Situ
 
       case "experiments":
         return runExperimentsCommand({ invocation });
+
+      case "live":
+        return runLiveCommand({ invocation });
 
       case "measurements":
         return runMeasurementsCommand({ invocation });

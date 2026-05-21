@@ -23,6 +23,12 @@ type ProductTableName =
   | "reviews"
   | "artifacts"
   | "reports"
+  | "briefings"
+  | "live_signals"
+  | "live_map_nodes"
+  | "live_map_edges"
+  | "live_focuses"
+  | "live_node_details"
   | "comments"
   | "events"
   | "notifications";
@@ -62,13 +68,22 @@ function productCounts(input: {
     reviews: countRows({ database: input.database, tableName: "reviews" }),
     artifacts: countRows({ database: input.database, tableName: "artifacts" }),
     reports: countRows({ database: input.database, tableName: "reports" }),
+    briefings: countRows({ database: input.database, tableName: "briefings" }),
+    live_signals: countRows({ database: input.database, tableName: "live_signals" }),
+    live_map_nodes: countRows({ database: input.database, tableName: "live_map_nodes" }),
+    live_map_edges: countRows({ database: input.database, tableName: "live_map_edges" }),
+    live_focuses: countRows({ database: input.database, tableName: "live_focuses" }),
+    live_node_details: countRows({
+      database: input.database,
+      tableName: "live_node_details",
+    }),
     comments: countRows({ database: input.database, tableName: "comments" }),
     events: countRows({ database: input.database, tableName: "events" }),
     notifications: countRows({ database: input.database, tableName: "notifications" }),
   };
 }
 
-test("builds a full reset patch for projects, tasks, baselines, experiments, evidence, reports, comments, events, and notifications", () => {
+test("builds a full reset patch for projects, tasks, baselines, experiments, evidence, reports, briefings, live presentation records, comments, events, and notifications", () => {
   const database = openAppDatabase({ databasePath: memoryDatabasePath });
 
   try {
@@ -236,6 +251,117 @@ test("builds a full reset patch for projects, tasks, baselines, experiments, evi
         actorId: "scientist-1",
       },
       now: "2026-05-13T12:02:51.000Z",
+    });
+    context.repositories.briefings.create({
+      id: "briefing_pull_current" as SituId<"briefing">,
+      projectId: "project_pull_1" as SituId<"project">,
+      title: "Current briefing",
+      stage: "evaluating",
+      assessment: "on_track",
+      headlineMarkdown: "The strongest candidate is ready for review.",
+      blocks: [
+        {
+          type: "status",
+          summaryMarkdown: "Progress is moving in the right direction.",
+        },
+      ],
+      evidenceRefs: [
+        {
+          targetKind: "measurement",
+          targetId: "measurement_pull_score" as SituId<"measurement">,
+        },
+      ],
+      authoredBy: {
+        actorKind: "local_agent",
+        actorId: "manager-1",
+      },
+      now: "2026-05-13T12:02:51.500Z",
+    });
+    context.repositories.live.createSignal({
+      id: "live_signal_pull_review" as SituId<"live_signal">,
+      projectId: "project_pull_1" as SituId<"project">,
+      slot: "review",
+      label: "Review",
+      value: "Pending",
+      summary: "The strongest candidate is waiting on verifier review.",
+      tone: "watch",
+      refs: [
+        {
+          targetKind: "experiment",
+          targetId: "experiment_pull_ready" as SituId<"experiment">,
+        },
+      ],
+      authoredBy: {
+        actorKind: "local_agent",
+        actorId: "manager-1",
+      },
+      now: "2026-05-13T12:02:51.600Z",
+    });
+    context.repositories.live.createMapNode({
+      id: "live_node_pull_ready" as SituId<"live_node">,
+      projectId: "project_pull_1" as SituId<"project">,
+      nodeKey: "ready_experiment",
+      kind: "branch",
+      title: "Try beam search",
+      summary: "The strongest candidate is ready for verifier review.",
+      tone: "watch",
+      occurredAt: "2026-05-13T12:02:30.000Z",
+      refs: [
+        {
+          targetKind: "experiment",
+          targetId: "experiment_pull_ready" as SituId<"experiment">,
+        },
+      ],
+      authoredBy: {
+        actorKind: "local_agent",
+        actorId: "manager-1",
+      },
+      now: "2026-05-13T12:02:51.700Z",
+    });
+    context.repositories.live.createMapEdge({
+      id: "live_edge_pull_review" as SituId<"live_edge">,
+      projectId: "project_pull_1" as SituId<"project">,
+      edgeKey: "ready_to_review",
+      fromNodeKey: "ready_experiment",
+      toNodeKey: "review",
+      relation: "verifies",
+      tone: "watch",
+      authoredBy: {
+        actorKind: "local_agent",
+        actorId: "manager-1",
+      },
+      now: "2026-05-13T12:02:51.800Z",
+    });
+    context.repositories.live.createFocus({
+      id: "live_focus_pull_current" as SituId<"live_focus">,
+      projectId: "project_pull_1" as SituId<"project">,
+      mode: "node",
+      primaryNodeKey: "ready_experiment",
+      relatedNodeKeys: ["review"],
+      summary: "Review the ready beam-search candidate.",
+      authoredBy: {
+        actorKind: "local_agent",
+        actorId: "manager-1",
+      },
+      now: "2026-05-13T12:02:51.900Z",
+    });
+    context.repositories.live.createNodeDetail({
+      id: "live_detail_pull_ready" as SituId<"live_detail">,
+      projectId: "project_pull_1" as SituId<"project">,
+      nodeKey: "ready_experiment",
+      bodyMarkdown: "Beam search is ahead and needs verifier review before finalizing.",
+      facts: [{ label: "Score", value: "8.7 points", tone: "good" }],
+      refs: [
+        {
+          targetKind: "measurement",
+          targetId: "measurement_pull_score" as SituId<"measurement">,
+        },
+      ],
+      authoredBy: {
+        actorKind: "local_agent",
+        actorId: "manager-1",
+      },
+      now: "2026-05-13T12:02:51.950Z",
     });
     context.repositories.events.create({
       id: "event_pull_experiment" as SituId<"event">,
@@ -576,6 +702,162 @@ test("builds a full reset patch for projects, tasks, baselines, experiments, evi
             metadata: {
               createdAt: "2026-05-13T12:02:51.000Z",
               updatedAt: "2026-05-13T12:02:51.000Z",
+            },
+          },
+        },
+        {
+          op: "put",
+          key: "briefings/briefing_pull_current",
+          value: {
+            id: "briefing_pull_current",
+            projectId: "project_pull_1",
+            title: "Current briefing",
+            stage: "evaluating",
+            assessment: "on_track",
+            headlineMarkdown: "The strongest candidate is ready for review.",
+            blocks: [
+              {
+                type: "status",
+                summaryMarkdown: "Progress is moving in the right direction.",
+              },
+            ],
+            evidenceRefs: [
+              {
+                targetKind: "measurement",
+                targetId: "measurement_pull_score",
+              },
+            ],
+            authoredBy: {
+              actorKind: "local_agent",
+              actorId: "manager-1",
+            },
+            metadata: {
+              createdAt: "2026-05-13T12:02:51.500Z",
+              updatedAt: "2026-05-13T12:02:51.500Z",
+            },
+          },
+        },
+        {
+          op: "put",
+          key: "live-signals/live_signal_pull_review",
+          value: {
+            id: "live_signal_pull_review",
+            projectId: "project_pull_1",
+            slot: "review",
+            label: "Review",
+            value: "Pending",
+            summary: "The strongest candidate is waiting on verifier review.",
+            tone: "watch",
+            refs: [
+              {
+                targetKind: "experiment",
+                targetId: "experiment_pull_ready",
+              },
+            ],
+            visibility: "visible",
+            authoredBy: {
+              actorKind: "local_agent",
+              actorId: "manager-1",
+            },
+            metadata: {
+              createdAt: "2026-05-13T12:02:51.600Z",
+              updatedAt: "2026-05-13T12:02:51.600Z",
+            },
+          },
+        },
+        {
+          op: "put",
+          key: "live-map-nodes/live_node_pull_ready",
+          value: {
+            id: "live_node_pull_ready",
+            projectId: "project_pull_1",
+            nodeKey: "ready_experiment",
+            kind: "branch",
+            title: "Try beam search",
+            summary: "The strongest candidate is ready for verifier review.",
+            tone: "watch",
+            occurredAt: "2026-05-13T12:02:30.000Z",
+            refs: [
+              {
+                targetKind: "experiment",
+                targetId: "experiment_pull_ready",
+              },
+            ],
+            visibility: "visible",
+            authoredBy: {
+              actorKind: "local_agent",
+              actorId: "manager-1",
+            },
+            metadata: {
+              createdAt: "2026-05-13T12:02:51.700Z",
+              updatedAt: "2026-05-13T12:02:51.700Z",
+            },
+          },
+        },
+        {
+          op: "put",
+          key: "live-map-edges/live_edge_pull_review",
+          value: {
+            id: "live_edge_pull_review",
+            projectId: "project_pull_1",
+            edgeKey: "ready_to_review",
+            fromNodeKey: "ready_experiment",
+            toNodeKey: "review",
+            relation: "verifies",
+            tone: "watch",
+            visibility: "visible",
+            authoredBy: {
+              actorKind: "local_agent",
+              actorId: "manager-1",
+            },
+            metadata: {
+              createdAt: "2026-05-13T12:02:51.800Z",
+              updatedAt: "2026-05-13T12:02:51.800Z",
+            },
+          },
+        },
+        {
+          op: "put",
+          key: "live-focuses/live_focus_pull_current",
+          value: {
+            id: "live_focus_pull_current",
+            projectId: "project_pull_1",
+            mode: "node",
+            primaryNodeKey: "ready_experiment",
+            relatedNodeKeys: ["review"],
+            summary: "Review the ready beam-search candidate.",
+            authoredBy: {
+              actorKind: "local_agent",
+              actorId: "manager-1",
+            },
+            metadata: {
+              createdAt: "2026-05-13T12:02:51.900Z",
+              updatedAt: "2026-05-13T12:02:51.900Z",
+            },
+          },
+        },
+        {
+          op: "put",
+          key: "live-node-details/live_detail_pull_ready",
+          value: {
+            id: "live_detail_pull_ready",
+            projectId: "project_pull_1",
+            nodeKey: "ready_experiment",
+            bodyMarkdown: "Beam search is ahead and needs verifier review before finalizing.",
+            facts: [{ label: "Score", value: "8.7 points", tone: "good" }],
+            refs: [
+              {
+                targetKind: "measurement",
+                targetId: "measurement_pull_score",
+              },
+            ],
+            authoredBy: {
+              actorKind: "local_agent",
+              actorId: "manager-1",
+            },
+            metadata: {
+              createdAt: "2026-05-13T12:02:51.950Z",
+              updatedAt: "2026-05-13T12:02:51.950Z",
             },
           },
         },

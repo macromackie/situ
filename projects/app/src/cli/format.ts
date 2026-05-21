@@ -173,6 +173,28 @@ export function formatReportLines(
     .join("\n");
 }
 
+export function formatBriefingLines(
+  briefings: readonly {
+    readonly id: string;
+    readonly projectId: string;
+    readonly stage: string;
+    readonly assessment: string;
+    readonly title: string;
+    readonly authoredBy: {
+      readonly actorKind: string;
+      readonly actorId: string;
+    };
+    readonly headlineMarkdown: string;
+  }[],
+): string {
+  return briefings
+    .map(
+      (briefing) =>
+        `${briefing.id}\t${briefing.projectId}\t${briefing.stage}\t${briefing.assessment}\t${briefing.title}\t${briefing.authoredBy.actorKind}/${briefing.authoredBy.actorId}\t${briefing.headlineMarkdown}`,
+    )
+    .join("\n");
+}
+
 export function formatNotificationLines(
   notifications: readonly {
     readonly id: string;

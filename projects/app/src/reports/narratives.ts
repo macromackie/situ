@@ -1,4 +1,4 @@
-import type { DateLine, MetricSeries } from "@situ/reports-ui";
+import type { DateLine, MetricSeries } from "@situ/reports-ui/browser";
 
 import type { ProjectReportExperimentSnapshot } from "./types.js";
 import type { SnapshotDerivedModel } from "./mdx/snapshot-to-props.js";

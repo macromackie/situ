@@ -8,8 +8,8 @@ import type {
   MetricSeries,
   OutcomeRow,
   SwimlaneRow,
-} from "@situ/reports-ui";
-import { pickImprovementDirection } from "@situ/reports-ui";
+} from "@situ/reports-ui/browser";
+import { pickImprovementDirection } from "@situ/reports-ui/browser";
 
 import type { ProjectReportExperimentSnapshot, ProjectReportSnapshot } from "../types.js";
 

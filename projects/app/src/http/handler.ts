@@ -8,6 +8,7 @@ import {
   validateReplicachePullRequest,
   validateReplicachePushRequest,
 } from "../sync/index.js";
+import { handleLiveUiGetRequest, isLiveUiPath } from "../live-ui/server.js";
 
 export type SituHttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -26,6 +27,7 @@ const healthPath = "/health";
 const pullPath = "/replicache/pull";
 const pushPath = "/replicache/push";
 const healthMethods = ["GET"] satisfies readonly SituHttpMethod[];
+const liveUiMethods = ["GET"] satisfies readonly SituHttpMethod[];
 const pullMethods = ["POST"] satisfies readonly SituHttpMethod[];
 const pushMethods = ["POST"] satisfies readonly SituHttpMethod[];
 
@@ -35,6 +37,13 @@ export async function handleSituHttpRequest(input: HandleSituHttpRequestInput): 
 
     if (url.pathname === healthPath) {
       return handleHealthRequest({ request: input.request });
+    }
+
+    if (isLiveUiPath(url.pathname)) {
+      return await handleLiveUiRequest({
+        request: input.request,
+        pathname: url.pathname,
+      });
     }
 
     if (url.pathname === pullPath) {
@@ -54,6 +63,30 @@ export async function handleSituHttpRequest(input: HandleSituHttpRequestInput): 
   } catch (error) {
     return jsonErrorResponse({ error });
   }
+}
+
+async function handleLiveUiRequest(input: {
+  readonly request: Request;
+  readonly pathname: string;
+}): Promise<Response> {
+  if (input.request.method !== "GET") {
+    return jsonErrorResponse({
+      error: new ValidationError({
+        message: "HTTP method is not supported for this path.",
+        details: {
+          method: input.request.method,
+          path: input.pathname,
+          allowedMethods: liveUiMethods,
+        },
+      }),
+      headers: { Allow: liveUiMethods.join(", ") },
+      status: 405,
+    });
+  }
+
+  return await handleLiveUiGetRequest({
+    pathname: input.pathname,
+  });
 }
 
 function handleHealthRequest(input: { readonly request: Request }): Response {

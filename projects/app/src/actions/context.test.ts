@@ -25,6 +25,8 @@ test("creates the app repository bundle", () => {
       "artifacts",
       "reviews",
       "reports",
+      "briefings",
+      "live",
     ]);
     expect(repositories.projects.create).toBeFunction();
     expect(repositories.tasks.create).toBeFunction();
@@ -38,6 +40,8 @@ test("creates the app repository bundle", () => {
     expect(repositories.artifacts.create).toBeFunction();
     expect(repositories.reviews.create).toBeFunction();
     expect(repositories.reports.create).toBeFunction();
+    expect(repositories.briefings.create).toBeFunction();
+    expect(repositories.live.createSignal).toBeFunction();
   } finally {
     database.close();
   }

@@ -18,9 +18,11 @@ Commands:
   serve     Start the local Situ HTTP server.
   artifacts  Manage artifact records.
   baselines  Manage baseline records.
+  briefings  Manage live briefing records.
   comments  Manage comments attached to records.
   events    Manage event timeline records.
   experiments  Manage experiment records.
+  live      Manage live presentation records.
   measurements  Manage measurement records.
   notifications  Manage notification inbox records.
   projects  Manage project records.
@@ -61,6 +63,210 @@ Check local CLI configuration without mutating state.
 Flags:
   --host <hostname>
   --port <0-65535>
+`,
+  ],
+  [
+    "live",
+    `Usage: situ live <subcommand>
+
+Subcommands:
+  signals   Create live signal records.
+  nodes     Create live run-map node records.
+  edges     Create live run-map edge records.
+  focus     Create live focus records.
+  details   Create live node detail records.
+  list      List live presentation records for a project.
+`,
+  ],
+  [
+    "live signals",
+    `Usage: situ live signals set [flags]
+`,
+  ],
+  [
+    "live signals set",
+    `Usage: situ live signals set [flags]
+
+Required flags:
+  --project-id <project-id>
+  --slot <slot>
+  --label <label>
+  --value <value>
+  --tone <neutral|good|watch|blocked|done>
+  --authored-by-kind <human|local_agent|system>
+  --authored-by-id <id>
+
+Optional flags:
+  --id <live-signal-id>
+  --summary <summary>
+  --refs-json <json-array>
+  --visibility <visible|hidden>
+  --authored-by-display-name <name>
+  --now <iso-timestamp>
+`,
+  ],
+  [
+    "live nodes",
+    `Usage: situ live nodes set [flags]
+`,
+  ],
+  [
+    "live nodes set",
+    `Usage: situ live nodes set [flags]
+
+Required flags:
+  --project-id <project-id>
+  --node-key <key>
+  --kind <baseline|branch|verification|finding|blocker|decision|result>
+  --title <title>
+  --summary <summary>
+  --tone <neutral|good|watch|blocked|done>
+  --authored-by-kind <human|local_agent|system>
+  --authored-by-id <id>
+
+Optional flags:
+  --id <live-node-id>
+  --occurred-at <iso-timestamp>
+  --refs-json <json-array>
+  --visibility <visible|hidden>
+  --authored-by-display-name <name>
+  --now <iso-timestamp>
+`,
+  ],
+  [
+    "live edges",
+    `Usage: situ live edges set [flags]
+`,
+  ],
+  [
+    "live edges set",
+    `Usage: situ live edges set [flags]
+
+Required flags:
+  --project-id <project-id>
+  --edge-key <key>
+  --from-node-key <key>
+  --to-node-key <key>
+  --relation <led_to|depends_on|blocked_by|supersedes|verifies>
+  --tone <neutral|good|watch|blocked>
+  --authored-by-kind <human|local_agent|system>
+  --authored-by-id <id>
+
+Optional flags:
+  --id <live-edge-id>
+  --visibility <visible|hidden>
+  --authored-by-display-name <name>
+  --now <iso-timestamp>
+`,
+  ],
+  [
+    "live focus",
+    `Usage: situ live focus set [flags]
+`,
+  ],
+  [
+    "live focus set",
+    `Usage: situ live focus set [flags]
+
+Required flags:
+  --project-id <project-id>
+  --mode <overview|node|comparison|blocked>
+  --authored-by-kind <human|local_agent|system>
+  --authored-by-id <id>
+
+Optional flags:
+  --id <live-focus-id>
+  --primary-node-key <key>
+  --related-node-keys-json <json-array>
+  --summary <summary>
+  --authored-by-display-name <name>
+  --now <iso-timestamp>
+`,
+  ],
+  [
+    "live details",
+    `Usage: situ live details set [flags]
+`,
+  ],
+  [
+    "live details set",
+    `Usage: situ live details set [flags]
+
+Required flags:
+  --project-id <project-id>
+  --node-key <key>
+  --body <markdown>
+  --authored-by-kind <human|local_agent|system>
+  --authored-by-id <id>
+
+Optional flags:
+  --id <live-detail-id>
+  --facts-json <json-array>
+  --refs-json <json-array>
+  --authored-by-display-name <name>
+  --now <iso-timestamp>
+`,
+  ],
+  [
+    "live list",
+    `Usage: situ live list [flags]
+
+Required flags:
+  --project-id <project-id>
+`,
+  ],
+  [
+    "briefings",
+    `Usage: situ briefings <subcommand>
+
+Subcommands:
+  create   Create a live briefing record.
+  list     List briefing records for a project.
+  recent   List recent briefing records.
+  get      Show a briefing record.
+`,
+  ],
+  [
+    "briefings create",
+    `Usage: situ briefings create [flags]
+
+Required flags:
+  --project-id <project-id>
+  --title <title>
+  --stage <orienting|baselining|exploring|evaluating|synthesizing|finalizing|complete|blocked>
+  --assessment <on_track|watch|blocked|complete>
+  --headline <markdown>
+  --authored-by-kind <human|local_agent|system>
+  --authored-by-id <id>
+
+Optional flags:
+  --id <briefing-id>
+  --block-json <json-object>
+  --blocks-json <json-array>
+  --evidence-refs-json <json-array>
+  --authored-by-display-name <name>
+  --now <iso-timestamp>
+`,
+  ],
+  [
+    "briefings list",
+    `Usage: situ briefings list [flags]
+
+Required flags:
+  --project-id <project-id>
+`,
+  ],
+  [
+    "briefings recent",
+    `Usage: situ briefings recent [flags]
+
+Flags:
+  --limit <positive-integer>
+`,
+  ],
+  [
+    "briefings get",
+    `Usage: situ briefings get <briefing-id>
 `,
   ],
   [

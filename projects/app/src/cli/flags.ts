@@ -25,6 +25,12 @@ const targetKinds = [
   "artifact",
   "review",
   "report",
+  "briefing",
+  "live_signal",
+  "live_node",
+  "live_edge",
+  "live_focus",
+  "live_detail",
 ] as const;
 const projectStatuses = ["active", "archived"] as const;
 const taskStatuses = ["triage", "backlog", "in_progress", "in_review", "done", "canceled"] as const;

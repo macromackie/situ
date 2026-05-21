@@ -51,7 +51,13 @@ export type IdPrefix =
   | "measurement"
   | "artifact"
   | "review"
-  | "report";
+  | "report"
+  | "briefing"
+  | "live_signal"
+  | "live_node"
+  | "live_edge"
+  | "live_focus"
+  | "live_detail";
 
 export type SituId<TPrefix extends IdPrefix = IdPrefix> = `${TPrefix}_${string}` & {
   readonly __situIdPrefix?: TPrefix;
@@ -114,7 +120,13 @@ export type TargetKind =
   | "measurement"
   | "artifact"
   | "review"
-  | "report";
+  | "report"
+  | "briefing"
+  | "live_signal"
+  | "live_node"
+  | "live_edge"
+  | "live_focus"
+  | "live_detail";
 
 export type TargetRef<TKind extends TargetKind = TargetKind> = {
   readonly targetKind: TKind;

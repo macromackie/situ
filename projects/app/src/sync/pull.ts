@@ -91,6 +91,54 @@ export function processReplicachePull(input: ProcessReplicachePullInput): Replic
         });
       }
 
+      for (const briefing of context.repositories.briefings.listAll()) {
+        patch.push({
+          op: "put",
+          key: `briefings/${briefing.id}`,
+          value: toJsonValue(briefing),
+        });
+      }
+
+      for (const signal of context.repositories.live.listAllSignals()) {
+        patch.push({
+          op: "put",
+          key: `live-signals/${signal.id}`,
+          value: toJsonValue(signal),
+        });
+      }
+
+      for (const node of context.repositories.live.listAllMapNodes()) {
+        patch.push({
+          op: "put",
+          key: `live-map-nodes/${node.id}`,
+          value: toJsonValue(node),
+        });
+      }
+
+      for (const edge of context.repositories.live.listAllMapEdges()) {
+        patch.push({
+          op: "put",
+          key: `live-map-edges/${edge.id}`,
+          value: toJsonValue(edge),
+        });
+      }
+
+      for (const focus of context.repositories.live.listAllFocuses()) {
+        patch.push({
+          op: "put",
+          key: `live-focuses/${focus.id}`,
+          value: toJsonValue(focus),
+        });
+      }
+
+      for (const detail of context.repositories.live.listAllNodeDetails()) {
+        patch.push({
+          op: "put",
+          key: `live-node-details/${detail.id}`,
+          value: toJsonValue(detail),
+        });
+      }
+
       for (const comment of context.repositories.comments.listAll()) {
         patch.push({
           op: "put",

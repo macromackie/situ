@@ -12,7 +12,13 @@ export type IdPrefix =
   | "measurement"
   | "artifact"
   | "review"
-  | "report";
+  | "report"
+  | "briefing"
+  | "live_signal"
+  | "live_node"
+  | "live_edge"
+  | "live_focus"
+  | "live_detail";
 
 /**
  * Prefixed Situ identifier used at package boundaries.

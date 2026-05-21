@@ -134,6 +134,15 @@ run = "cd projects/app/packages/baselines && mise run typecheck"
 [tasks."app:baselines:test"]
 run = "cd projects/app/packages/baselines && mise run test"
 
+[tasks."app:briefings:check"]
+run = "cd projects/app/packages/briefings && mise run check"
+
+[tasks."app:briefings:typecheck"]
+run = "cd projects/app/packages/briefings && mise run typecheck"
+
+[tasks."app:briefings:test"]
+run = "cd projects/app/packages/briefings && mise run test"
+
 [tasks."app:comments:check"]
 run = "cd projects/app/packages/comments && mise run check"
 

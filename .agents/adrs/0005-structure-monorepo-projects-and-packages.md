@@ -74,6 +74,8 @@ It should include primitive packages:
 - `artifacts`: artifact records and file references
 - `reviews`: review records
 - `reports`: durable report records
+- `briefings`: append-only authored live briefing records
+- `live`: append-only live presentation records
 
 It should include adapter packages:
 

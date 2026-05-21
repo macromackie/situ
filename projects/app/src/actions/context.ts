@@ -2,9 +2,11 @@ import type { Database } from "bun:sqlite";
 
 import { createArtifactRepository, type ArtifactRepository } from "@situ/artifacts";
 import { createBaselineRepository, type BaselineRepository } from "@situ/baselines";
+import { createBriefingRepository, type BriefingRepository } from "@situ/briefings";
 import { createCommentRepository, type CommentRepository } from "@situ/comments";
 import { createEventRepository, type EventRepository } from "@situ/events";
 import { createExperimentRepository, type ExperimentRepository } from "@situ/experiments";
+import { createLiveRepository, type LiveRepository } from "@situ/live";
 import { createMeasurementRepository, type MeasurementRepository } from "@situ/measurements";
 import { createNotificationRepository, type NotificationRepository } from "@situ/notifications";
 import { createProjectRepository, type ProjectRepository } from "@situ/projects";
@@ -26,6 +28,8 @@ export type AppRepositories = {
   readonly artifacts: ArtifactRepository;
   readonly reviews: ReviewRepository;
   readonly reports: ReportRepository;
+  readonly briefings: BriefingRepository;
+  readonly live: LiveRepository;
 };
 
 export type CreateAppRepositoriesInput = {
@@ -45,6 +49,8 @@ export function createAppRepositories(input: CreateAppRepositoriesInput): AppRep
     artifacts: createArtifactRepository({ database: input.database }),
     reviews: createReviewRepository({ database: input.database }),
     reports: createReportRepository({ database: input.database }),
+    briefings: createBriefingRepository({ database: input.database }),
+    live: createLiveRepository({ database: input.database }),
   };
 }
 

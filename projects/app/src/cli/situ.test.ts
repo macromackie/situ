@@ -34,9 +34,11 @@ Commands:
   serve     Start the local Situ HTTP server.
   artifacts  Manage artifact records.
   baselines  Manage baseline records.
+  briefings  Manage live briefing records.
   comments  Manage comments attached to records.
   events    Manage event timeline records.
   experiments  Manage experiment records.
+  live      Manage live presentation records.
   measurements  Manage measurement records.
   notifications  Manage notification inbox records.
   projects  Manage project records.
@@ -5688,6 +5690,603 @@ test("validates report syntax before opening the database", async () => {
         ],
         [
           ["--db", databasePath, "reports", "recent", "--limit", "9007199254740992"],
+          "Error [validation]: Expected a positive integer limit.\n",
+        ],
+      ] as const,
+      async ([args, stderr]) => {
+        expect(await runSituCli({ args, environment })).toEqual({
+          exitCode: 1,
+          stdout: "",
+          stderr,
+        });
+        expect(existsSync(dirname(databasePath))).toBe(false);
+      },
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("creates, lists, gets, and lists recent briefings", async () => {
+  await withTempDatabasePath(async (databasePath) => {
+    const projectId = await createCliProjectFixture({
+      databasePath,
+      prefix: "cli_briefings",
+    });
+
+    const create = await runSituCli({
+      args: [
+        "--json",
+        "--db",
+        databasePath,
+        "briefings",
+        "create",
+        "--id",
+        "briefing_cli_1",
+        "--project-id",
+        projectId,
+        "--title",
+        "Ignored title",
+        "--title",
+        "Current briefing",
+        "--stage",
+        "evaluating",
+        "--assessment",
+        "on_track",
+        "--headline",
+        "The run is healthy.",
+        "--block-json",
+        '{"type":"status","summaryMarkdown":"Evidence is improving.","refs":[{"targetKind":"project","targetId":"project_cli_briefings"}]}',
+        "--block-json",
+        '{"type":"next_steps","items":[{"text":"Run verifier."}]}',
+        "--evidence-refs-json",
+        '[{"targetKind":"project","targetId":"project_cli_briefings"}]',
+        "--authored-by-kind",
+        "local_agent",
+        "--authored-by-id",
+        "manager",
+        "--authored-by-display-name",
+        "Manager",
+        "--now",
+        "2026-05-20T12:03:00.000Z",
+      ],
+      environment,
+    });
+
+    expect(create.exitCode).toBe(0);
+    expect(create.stderr).toBe("");
+    expect(JSON.parse(create.stdout)).toMatchObject({
+      briefing: {
+        id: "briefing_cli_1",
+        projectId,
+        title: "Current briefing",
+        stage: "evaluating",
+        assessment: "on_track",
+        headlineMarkdown: "The run is healthy.",
+        blocks: [
+          {
+            type: "status",
+            summaryMarkdown: "Evidence is improving.",
+          },
+          {
+            type: "next_steps",
+            items: [{ text: "Run verifier." }],
+          },
+        ],
+        evidenceRefs: [
+          {
+            targetKind: "project",
+            targetId: projectId,
+          },
+        ],
+        authoredBy: {
+          actorKind: "local_agent",
+          actorId: "manager",
+          displayName: "Manager",
+        },
+        metadata: {
+          createdAt: "2026-05-20T12:03:00.000Z",
+          updatedAt: "2026-05-20T12:03:00.000Z",
+        },
+      },
+    });
+
+    expect(
+      await runSituCli({
+        args: [
+          "--db",
+          databasePath,
+          "briefings",
+          "create",
+          "--id",
+          "briefing_cli_2",
+          "--project-id",
+          projectId,
+          "--title",
+          "Second briefing",
+          "--stage",
+          "synthesizing",
+          "--assessment",
+          "watch",
+          "--headline",
+          "The run needs one more check.",
+          "--blocks-json",
+          '[{"type":"callout","tone":"warning","bodyMarkdown":"Verifier is still pending."}]',
+          "--authored-by-kind",
+          "human",
+          "--authored-by-id",
+          "scott",
+          "--now",
+          "2026-05-20T12:04:00.000Z",
+        ],
+        environment,
+      }),
+    ).toEqual({
+      exitCode: 0,
+      stderr: "",
+      stdout: "Created briefing briefing_cli_2\n",
+    });
+
+    expect(
+      JSON.parse(
+        (
+          await runSituCli({
+            args: ["--json", "--db", databasePath, "briefings", "list", "--project-id", projectId],
+            environment,
+          })
+        ).stdout,
+      ),
+    ).toMatchObject({
+      briefings: [
+        {
+          id: "briefing_cli_1",
+        },
+        {
+          id: "briefing_cli_2",
+        },
+      ],
+    });
+
+    expect(
+      JSON.parse(
+        (
+          await runSituCli({
+            args: ["--json", "--db", databasePath, "briefings", "recent", "--limit", "1"],
+            environment,
+          })
+        ).stdout,
+      ),
+    ).toMatchObject({
+      briefings: [
+        {
+          id: "briefing_cli_2",
+        },
+      ],
+    });
+
+    expect(
+      await runSituCli({
+        args: ["--db", databasePath, "briefings", "get", "briefing_cli_1"],
+        environment,
+      }),
+    ).toEqual({
+      exitCode: 0,
+      stderr: "",
+      stdout:
+        "briefing_cli_1\tproject_cli_briefings\tevaluating\ton_track\tCurrent briefing\tlocal_agent/manager\tThe run is healthy.\n",
+    });
+  });
+});
+
+test("returns not found for missing briefing get", async () => {
+  await withTempDatabasePath(async (databasePath) => {
+    expect(
+      await runSituCli({
+        args: ["--json", "--db", databasePath, "briefings", "get", "briefing_missing"],
+        environment,
+      }),
+    ).toEqual({
+      exitCode: 1,
+      stdout: "",
+      stderr:
+        '{"error":{"kind":"not_found","message":"Briefing was not found.","details":{"id":"briefing_missing"}}}\n',
+    });
+  });
+});
+
+test("creates and lists live presentation records", async () => {
+  await withTempDatabasePath(async (databasePath) => {
+    const projectId = await createCliProjectFixture({
+      databasePath,
+      prefix: "cli_live",
+    });
+
+    const sharedArgs = [
+      "--project-id",
+      projectId,
+      "--authored-by-kind",
+      "local_agent",
+      "--authored-by-id",
+      "manager",
+      "--authored-by-display-name",
+      "Manager",
+    ] as const;
+
+    const signalResult = await runSituCli({
+      args: [
+        "--json",
+        "--db",
+        databasePath,
+        "live",
+        "signals",
+        "set",
+        "--id",
+        "live_signal_cli_risk",
+        ...sharedArgs,
+        "--slot",
+        "risk",
+        "--label",
+        "Risk",
+        "--value",
+        "Verifier pending",
+        "--summary",
+        "One targeted check remains.",
+        "--tone",
+        "watch",
+        "--refs-json",
+        `[{"targetKind":"project","targetId":"${projectId}"}]`,
+        "--now",
+        "2026-05-20T12:00:00.000Z",
+      ],
+      environment,
+    });
+
+    expect(signalResult.exitCode).toBe(0);
+    expect(JSON.parse(signalResult.stdout)).toMatchObject({
+      signal: {
+        id: "live_signal_cli_risk",
+        projectId,
+        slot: "risk",
+        value: "Verifier pending",
+        tone: "watch",
+      },
+    });
+
+    expect(
+      await runSituCli({
+        args: [
+          "--db",
+          databasePath,
+          "live",
+          "nodes",
+          "set",
+          "--id",
+          "live_node_cli_parser",
+          ...sharedArgs,
+          "--node-key",
+          "parser",
+          "--kind",
+          "branch",
+          "--title",
+          "Parser branch",
+          "--summary",
+          "Measured ahead of baseline.",
+          "--tone",
+          "good",
+          "--occurred-at",
+          "2026-05-20T12:01:00.000Z",
+        ],
+        environment,
+      }),
+    ).toEqual({
+      exitCode: 0,
+      stderr: "",
+      stdout: "Created live node live_node_cli_parser\n",
+    });
+
+    expect(
+      await runSituCli({
+        args: [
+          "--db",
+          databasePath,
+          "live",
+          "edges",
+          "set",
+          "--id",
+          "live_edge_cli_parser",
+          ...sharedArgs,
+          "--edge-key",
+          "baseline_to_parser",
+          "--from-node-key",
+          "baseline",
+          "--to-node-key",
+          "parser",
+          "--relation",
+          "led_to",
+          "--tone",
+          "good",
+        ],
+        environment,
+      }),
+    ).toEqual({
+      exitCode: 0,
+      stderr: "",
+      stdout: "Created live edge live_edge_cli_parser\n",
+    });
+
+    expect(
+      await runSituCli({
+        args: [
+          "--db",
+          databasePath,
+          "live",
+          "focus",
+          "set",
+          "--id",
+          "live_focus_cli_parser",
+          ...sharedArgs,
+          "--mode",
+          "node",
+          "--primary-node-key",
+          "parser",
+          "--related-node-keys-json",
+          '["baseline"]',
+          "--summary",
+          "Inspect the parser branch.",
+        ],
+        environment,
+      }),
+    ).toEqual({
+      exitCode: 0,
+      stderr: "",
+      stdout: "Created live focus live_focus_cli_parser\n",
+    });
+
+    expect(
+      await runSituCli({
+        args: [
+          "--db",
+          databasePath,
+          "live",
+          "details",
+          "set",
+          "--id",
+          "live_detail_cli_parser",
+          ...sharedArgs,
+          "--node-key",
+          "parser",
+          "--body",
+          "Parser branch has the best current measurement.",
+          "--facts-json",
+          '[{"label":"Delta","value":"+0.09","tone":"good"}]',
+        ],
+        environment,
+      }),
+    ).toEqual({
+      exitCode: 0,
+      stderr: "",
+      stdout: "Created live detail live_detail_cli_parser\n",
+    });
+
+    const listResult = await runSituCli({
+      args: ["--json", "--db", databasePath, "live", "list", "--project-id", projectId],
+      environment,
+    });
+
+    expect(listResult.exitCode).toBe(0);
+    expect(JSON.parse(listResult.stdout)).toMatchObject({
+      signals: [{ id: "live_signal_cli_risk" }],
+      mapNodes: [{ id: "live_node_cli_parser" }],
+      mapEdges: [{ id: "live_edge_cli_parser" }],
+      focuses: [{ id: "live_focus_cli_parser" }],
+      nodeDetails: [{ id: "live_detail_cli_parser" }],
+    });
+  });
+});
+
+test("validates live syntax before opening the database", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "situ-cli-"));
+  const databasePath = join(directory, "nested", "situ.db");
+
+  try {
+    await forEachSequentially(
+      [
+        [
+          ["--db", databasePath, "live"],
+          "Error [validation]: Command live requires a subcommand.\n",
+        ],
+        [
+          ["--db", databasePath, "live", "missing", "set"],
+          "Error [validation]: Unknown live subcommand: missing.\n",
+        ],
+        [
+          ["--db", databasePath, "live", "signals", "set"],
+          "Error [validation]: Missing required flag --project-id.\n",
+        ],
+        [
+          [
+            "--db",
+            databasePath,
+            "live",
+            "signals",
+            "set",
+            "--project-id",
+            "project_cli_live",
+            "--slot",
+            "risk",
+            "--label",
+            "Risk",
+            "--value",
+            "None",
+            "--tone",
+            "bad",
+            "--authored-by-kind",
+            "human",
+            "--authored-by-id",
+            "scott",
+          ],
+          "Error [validation]: Invalid live tone: bad.\n",
+        ],
+        [
+          [
+            "--db",
+            databasePath,
+            "live",
+            "details",
+            "set",
+            "--project-id",
+            "project_cli_live",
+            "--node-key",
+            "parser",
+            "--body",
+            "Body",
+            "--facts-json",
+            "{bad",
+            "--authored-by-kind",
+            "human",
+            "--authored-by-id",
+            "scott",
+          ],
+          "Error [validation]: Invalid JSON for --facts-json.\n",
+        ],
+      ] as const,
+      async ([args, stderr]) => {
+        expect(await runSituCli({ args, environment })).toEqual({
+          exitCode: 1,
+          stdout: "",
+          stderr,
+        });
+        expect(existsSync(dirname(databasePath))).toBe(false);
+      },
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("validates briefing syntax before opening the database", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "situ-cli-"));
+  const databasePath = join(directory, "nested", "situ.db");
+
+  try {
+    await forEachSequentially(
+      [
+        [
+          ["--db", databasePath, "briefings"],
+          "Error [validation]: Command briefings requires a subcommand.\n",
+        ],
+        [
+          ["--db", databasePath, "briefings", "wat"],
+          "Error [validation]: Unknown briefings subcommand: wat.\n",
+        ],
+        [
+          ["--db", databasePath, "briefings", "get"],
+          "Error [validation]: Command briefings get requires <briefing-id>.\n",
+        ],
+        [
+          ["--db", databasePath, "briefings", "create"],
+          "Error [validation]: Missing required flag --project-id.\n",
+        ],
+        [
+          [
+            "--db",
+            databasePath,
+            "briefings",
+            "create",
+            "--project-id",
+            "project_cli_1",
+            "--title",
+            "Briefing",
+            "--stage",
+            "bogus",
+            "--assessment",
+            "on_track",
+            "--headline",
+            "Headline",
+            "--authored-by-kind",
+            "human",
+            "--authored-by-id",
+            "scott",
+          ],
+          "Error [validation]: Invalid briefing stage: bogus.\n",
+        ],
+        [
+          [
+            "--db",
+            databasePath,
+            "briefings",
+            "create",
+            "--project-id",
+            "project_cli_1",
+            "--title",
+            "Briefing",
+            "--stage",
+            "evaluating",
+            "--assessment",
+            "bogus",
+            "--headline",
+            "Headline",
+            "--authored-by-kind",
+            "human",
+            "--authored-by-id",
+            "scott",
+          ],
+          "Error [validation]: Invalid briefing assessment: bogus.\n",
+        ],
+        [
+          [
+            "--db",
+            databasePath,
+            "briefings",
+            "create",
+            "--project-id",
+            "project_cli_1",
+            "--title",
+            "Briefing",
+            "--stage",
+            "evaluating",
+            "--assessment",
+            "on_track",
+            "--headline",
+            "Headline",
+            "--block-json",
+            "{bad",
+            "--authored-by-kind",
+            "human",
+            "--authored-by-id",
+            "scott",
+          ],
+          "Error [validation]: Invalid JSON for --block-json.\n",
+        ],
+        [
+          [
+            "--db",
+            databasePath,
+            "briefings",
+            "create",
+            "--project-id",
+            "project_cli_1",
+            "--title",
+            "Briefing",
+            "--stage",
+            "evaluating",
+            "--assessment",
+            "on_track",
+            "--headline",
+            "Headline",
+            "--block-json",
+            '{"type":"status","summaryMarkdown":"One block."}',
+            "--blocks-json",
+            "[]",
+            "--authored-by-kind",
+            "human",
+            "--authored-by-id",
+            "scott",
+          ],
+          "Error [validation]: Command briefings create cannot combine --blocks-json with --block-json.\n",
+        ],
+        [
+          ["--db", databasePath, "briefings", "recent", "--limit", "0"],
           "Error [validation]: Expected a positive integer limit.\n",
         ],
       ] as const,

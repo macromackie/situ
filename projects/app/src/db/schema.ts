@@ -1,8 +1,10 @@
 import { artifactsSchemaFragment } from "@situ/artifacts";
 import { baselinesSchemaFragment } from "@situ/baselines";
+import { briefingsSchemaFragment } from "@situ/briefings";
 import { commentsSchemaFragment } from "@situ/comments";
 import { eventsSchemaFragment } from "@situ/events";
 import { experimentsSchemaFragment } from "@situ/experiments";
+import { liveSchemaFragment } from "@situ/live";
 import { measurementsSchemaFragment } from "@situ/measurements";
 import { notificationsSchemaFragment } from "@situ/notifications";
 import { projectsSchemaFragment } from "@situ/projects";
@@ -31,6 +33,8 @@ export const appSchemaFragments = [
   measurementsSchemaFragment,
   artifactsSchemaFragment,
   reportsSchemaFragment,
+  briefingsSchemaFragment,
+  liveSchemaFragment,
   reviewsSchemaFragment,
 ] as const satisfies readonly SchemaFragment[];
 

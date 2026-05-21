@@ -52,6 +52,7 @@ const targetKinds = new Set<TargetKind>([
   "artifact",
   "review",
   "report",
+  "briefing",
 ]);
 const taskStatuses = new Set<TaskStatus>([
   "triage",
