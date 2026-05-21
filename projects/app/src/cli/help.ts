@@ -15,6 +15,7 @@ Commands:
   help      Show this help text.
   version   Print the Situ CLI version.
   doctor    Check local CLI configuration without mutating state.
+  runbook   Print the operating runbook for autoresearch runs.
   serve     Start the local Situ HTTP server.
   artifacts  Manage artifact records.
   baselines  Manage baseline records.
@@ -54,6 +55,14 @@ Print the Situ CLI version.
     `Usage: situ doctor
 
 Check local CLI configuration without mutating state.
+`,
+  ],
+  [
+    "runbook",
+    `Usage: situ runbook
+
+Print the operating runbook for autoresearch runs. Read-only: prints plain text,
+ignores --json, and never opens the database.
 `,
   ],
   [

@@ -34,9 +34,10 @@ The top-level native goal belongs to the external local agent tool, not Situ.
 For example, a user may start a coding agent with:
 
 ```text
-/goal Use Situ to run autoresearch until every accepted experiment is complete,
-verified, and summarized. Keep going until situ status shows no pending or
-running work, all required checks pass, and a final report has been written.
+/goal Run `situ runbook` and follow it. Use Situ to run autoresearch until every
+accepted experiment is complete, verified, and summarized. Keep going until situ
+status shows no pending or running work, all required checks pass, and a final
+report has been written.
 ```
 
 After that, the root agent session acts as the manager. It reads and writes
@@ -47,6 +48,12 @@ evidence, runs checks, and decides whether the overall Situ run is done.
 Situ remains the canonical record of product state. The external agent tool
 remains the owner of private conversation context, native goal continuation,
 subagent spawning, and model execution.
+
+The manager bootstraps by running `situ runbook` and following it. ADR 0104
+defines that runbook: a static operating guide for this loop — lock the baseline
+before any change, keep a running-best frontier, stay honest about held-out data,
+mind the budget, and finish with a report. Because the runbook carries the method,
+the native goal can shrink to the objective, the budget, and a pointer to it.
 
 ## Delegation Default
 

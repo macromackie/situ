@@ -12,6 +12,7 @@ import { createAppActionContext } from "../actions/index.js";
 import { openAppDatabase } from "../db/index.js";
 import type { StartSituHttpServerInput, SituHttpServer } from "../http/server.js";
 import { runSituCli as runSituCliFromIndex } from "./index.js";
+import { runbookText } from "./runbook.js";
 import { defaultSituVersion, mainSituCli, runSituCli } from "./situ.js";
 
 const environment = {
@@ -31,6 +32,7 @@ Commands:
   help      Show this help text.
   version   Print the Situ CLI version.
   doctor    Check local CLI configuration without mutating state.
+  runbook   Print the operating runbook for autoresearch runs.
   serve     Start the local Situ HTTP server.
   artifacts  Manage artifact records.
   baselines  Manage baseline records.
@@ -704,6 +706,48 @@ test("runs the doctor command as JSON with an explicit database path", async () 
     exitCode: 0,
     stderr: "",
     stdout: `{"ok":true,"version":"${defaultSituVersion}","databasePath":"/tmp/situ.db"}\n`,
+  });
+});
+
+test("prints the runbook as plain text", async () => {
+  expect(await runSituCli({ args: ["runbook"], environment })).toEqual({
+    exitCode: 0,
+    stderr: "",
+    stdout: runbookText,
+  });
+});
+
+test("prints the runbook as plain text even with --json", async () => {
+  expect(await runSituCli({ args: ["--json", "runbook"], environment })).toEqual({
+    exitCode: 0,
+    stderr: "",
+    stdout: runbookText,
+  });
+});
+
+test("prints runbook usage for both help entrypoints", async () => {
+  const usage = `Usage: situ runbook
+
+Print the operating runbook for autoresearch runs. Read-only: prints plain text,
+ignores --json, and never opens the database.
+`;
+  expect(await runSituCli({ args: ["runbook", "--help"], environment })).toEqual({
+    exitCode: 0,
+    stderr: "",
+    stdout: usage,
+  });
+  expect(await runSituCli({ args: ["help", "runbook"], environment })).toEqual({
+    exitCode: 0,
+    stderr: "",
+    stdout: usage,
+  });
+});
+
+test("rejects extra args after the runbook command", async () => {
+  expect(await runSituCli({ args: ["runbook", "extra"], environment })).toEqual({
+    exitCode: 1,
+    stdout: "",
+    stderr: "Error [validation]: Command runbook does not accept arguments: extra\n",
   });
 });
 

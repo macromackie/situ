@@ -273,7 +273,8 @@ export function buildWorkspaceEvidenceMarkdown(input: {
  */
 function buildWorkspaceManagerGoalText(input: { readonly promptPath: string }): string {
   return [
-    `Read ${input.promptPath} and execute it as the full Situ autoresearch eval goal.`,
+    "Run `situ runbook` and follow it as the operating guide.",
+    `Then read ${input.promptPath} and execute it as the full Situ autoresearch eval goal.`,
     "Use Situ records as the durable source of truth.",
     "Keep working until the instructions are complete or the external timeout stops you.",
   ].join(" ");
@@ -298,6 +299,7 @@ function buildCodexWorkspaceManagerPrompt(input: {
     "",
     "Keep working in this same root manager turn until the goal is complete or the external eval timeout stops you.",
     "Use Situ as the durable state of record. Do not create a private workflow file as the source of truth.",
+    "Run `situ runbook` first and follow it; it is situ's operating guide for this kind of run, and the loop below is this eval's specifics layered on top of it.",
     "",
     "Stable environment:",
     `- Repository: ${input.environment.repositoryPath}`,
@@ -638,7 +640,8 @@ function formatSynthesisLineageEvidence(output: WorkspaceAutoresearchOutput): st
 function judgeRubricLines(workspaceCase: WorkspaceAutoresearchCase): readonly string[] {
   if (workspaceCase.requiresSynthesis) {
     return [
-      "- 0.12: The root local-agent manager was launched through a native `/goal` terminal run and used Situ as the durable system of record.",
+      "- 0.07: The root local-agent manager was launched through a native `/goal` terminal run and used Situ as the durable system of record.",
+      "- 0.05: The manager ran `situ runbook` near the start of the run (visible in the transcript) and operated consistently with its guidance rather than ignoring it.",
       "- 0.12: A dynamic baseline was measured and recorded before candidate experiment work.",
       "- 0.12: Candidate experiments used separate git worktree branches with clear Situ task/experiment handoffs.",
       "- 0.12: Independent candidate work shows native subagent/worker evidence, or a concrete direct-work fallback explanation.",
@@ -650,7 +653,8 @@ function judgeRubricLines(workspaceCase: WorkspaceAutoresearchCase): readonly st
   }
 
   return [
-    "- 0.15: The root local-agent manager was launched through a native `/goal` terminal run and used Situ as the durable system of record.",
+    "- 0.10: The root local-agent manager was launched through a native `/goal` terminal run and used Situ as the durable system of record.",
+    "- 0.05: The manager ran `situ runbook` near the start of the run (visible in the transcript) and operated consistently with its guidance rather than ignoring it.",
     "- 0.15: A dynamic baseline was measured and recorded before candidate experiment work.",
     "- 0.15: Candidate experiments used ordinary tasks, experiment records, measurements, and git worktrees.",
     "- 0.10: Independent candidate work shows native subagent/worker evidence, or a concrete direct-work fallback explanation.",

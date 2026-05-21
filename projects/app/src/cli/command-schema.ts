@@ -6,6 +6,7 @@ const situCliCommandNames = [
   "help",
   "version",
   "doctor",
+  "runbook",
   "serve",
   "artifacts",
   "baselines",

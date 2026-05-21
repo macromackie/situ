@@ -46,6 +46,7 @@ const commandDescriptions = {
   help: "Show this help text.",
   version: "Print the Situ CLI version.",
   doctor: "Check local CLI configuration without mutating state.",
+  runbook: "Print the operating runbook for autoresearch runs.",
   serve: "Start the local Situ HTTP server.",
   artifacts: "Manage artifact records.",
   baselines: "Manage baseline records.",
@@ -100,6 +101,7 @@ const situCommandParser = or(
   commandTargetParser("help"),
   commandTargetParser("version"),
   commandTargetParser("doctor"),
+  commandTargetParser("runbook"),
   commandTargetParser("serve"),
   situRecordCommandParser,
 );

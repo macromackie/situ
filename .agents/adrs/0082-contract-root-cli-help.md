@@ -31,12 +31,15 @@ Commands:
   help      Show this help text.
   version   Print the Situ CLI version.
   doctor    Check local CLI configuration without mutating state.
+  runbook   Print the operating runbook for autoresearch runs.
   serve     Start the local Situ HTTP server.
   artifacts  Manage artifact records.
   baselines  Manage baseline records.
+  briefings  Manage live briefing records.
   comments  Manage comments attached to records.
   events    Manage event timeline records.
   experiments  Manage experiment records.
+  live      Manage live presentation records.
   measurements  Manage measurement records.
   notifications  Manage notification inbox records.
   projects  Manage project records.
@@ -51,7 +54,7 @@ The emitted help output appends one trailing newline to this text.
 
 The command list order is intentional:
 
-1. base commands: `help`, `version`, `doctor`
+1. base commands: `help`, `version`, `doctor`, `runbook`
 2. runtime adapter command: `serve`
 3. product command groups in alphabetical order
 

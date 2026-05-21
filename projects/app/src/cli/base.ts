@@ -19,6 +19,7 @@ import { isCliParserError, throwParserError } from "./flags.js";
 import { formatCliError } from "./format.js";
 import { findHelpPathForInvocation, formatCliHelp, rootHelpText } from "./help.js";
 import { parseSituCliInvocation } from "./parser.js";
+import { runbookText } from "./runbook.js";
 import type {
   MainSituCliInput,
   RunSituCliInput,
@@ -184,6 +185,10 @@ async function runSituCliInvocation(invocation: SituCliInvocation): Promise<Situ
         assertNoCommandArgs(invocation);
         return formatDoctor(invocation);
 
+      case "runbook":
+        assertNoCommandArgs(invocation);
+        return formatRunbook();
+
       case "serve":
         return runServeFiniteCommand({ invocation });
 
@@ -290,6 +295,12 @@ function formatDoctor(invocation: SituCliInvocation): SituCliResult {
   }
 
   return { exitCode: 0, stdout: "situ doctor ok\n", stderr: "" };
+}
+
+// The runbook is a plain-text operating manual for agents. Like `help`, it is a
+// document to read, so it ignores --json and never opens the database.
+function formatRunbook(): SituCliResult {
+  return { exitCode: 0, stdout: runbookText, stderr: "" };
 }
 
 function assertNoCommandArgs(invocation: SituCliInvocation): void {
