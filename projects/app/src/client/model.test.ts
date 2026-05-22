@@ -16,7 +16,7 @@ import type { ReportRecord } from "@situ/reports";
 import type { ReviewRecord } from "@situ/reviews";
 import type { TaskRecord } from "@situ/tasks";
 
-import { buildLiveProjectModel, type LiveRecords } from "./model.js";
+import { buildProjectIndexModel, buildProjectOverviewModel, type ClientRecords } from "./model.js";
 
 const human: ActorRef = {
   actorKind: "human",
@@ -30,7 +30,7 @@ const manager: ActorRef = {
   displayName: "Manager",
 };
 
-const baseRecords: LiveRecords = {
+const baseRecords: ClientRecords = {
   projects: [],
   tasks: [],
   baselines: [],
@@ -53,7 +53,7 @@ const baseRecords: LiveRecords = {
 test("selects the requested project and derives running status from replicated records", () => {
   const project = projectRecord({
     id: "project_live_one",
-    name: "Live One",
+    name: "Project One",
     createdAt: "2026-05-20T10:00:00.000Z",
   });
   const task = taskRecord({
@@ -70,7 +70,7 @@ test("selects the requested project and derives running status from replicated r
     createdAt: "2026-05-20T10:02:00.000Z",
   });
 
-  const model = buildLiveProjectModel({
+  const model = buildProjectOverviewModel({
     records: {
       ...baseRecords,
       projects: [project],
@@ -92,6 +92,81 @@ test("selects the requested project and derives running status from replicated r
   expect(model.verification.checks.find((check) => check.name === "no-active-tasks")?.ok).toBe(
     false,
   );
+});
+
+test("does not auto-select a project without a requested project id", () => {
+  const activeProject = projectRecord({
+    id: "project_active",
+    name: "Active Project",
+    createdAt: "2026-05-20T10:00:00.000Z",
+  });
+  const newerProject = projectRecord({
+    id: "project_newer",
+    name: "Newer Project",
+    createdAt: "2026-05-20T11:00:00.000Z",
+  });
+
+  const model = buildProjectOverviewModel({
+    records: {
+      ...baseRecords,
+      projects: [activeProject, newerProject],
+    },
+  });
+
+  expect(model.kind).toBe("empty");
+  expect(model.missingRequestedProject).toBe(false);
+  expect(model.allProjects.map((project) => project.id)).toEqual([
+    activeProject.id,
+    newerProject.id,
+  ]);
+});
+
+test("returns an empty overview model when the requested project is missing", () => {
+  const project = projectRecord({
+    id: "project_present",
+    name: "Present Project",
+    createdAt: "2026-05-20T10:00:00.000Z",
+  });
+
+  const model = buildProjectOverviewModel({
+    records: {
+      ...baseRecords,
+      projects: [project],
+    },
+    requestedProjectId: "project_missing",
+  });
+
+  expect(model.kind).toBe("empty");
+  expect(model.requestedProjectId).toBe("project_missing");
+  expect(model.missingRequestedProject).toBe(true);
+});
+
+test("builds a project index grouped by active and archived projects", () => {
+  const activeProject = projectRecord({
+    id: "project_active_index",
+    name: "Active Index Project",
+    createdAt: "2026-05-20T10:00:00.000Z",
+  });
+  const archivedProject = projectRecord({
+    id: "project_archived_index",
+    name: "Archived Index Project",
+    status: "archived",
+    createdAt: "2026-05-20T11:00:00.000Z",
+  });
+
+  const model = buildProjectIndexModel({
+    records: {
+      ...baseRecords,
+      projects: [archivedProject, activeProject],
+    },
+  });
+
+  expect(model.activeProjects.map((project) => project.id)).toEqual([activeProject.id]);
+  expect(model.archivedProjects.map((project) => project.id)).toEqual([archivedProject.id]);
+  expect(model.allProjects.map((project) => project.id)).toEqual([
+    activeProject.id,
+    archivedProject.id,
+  ]);
 });
 
 test("marks a completed project verified when records satisfy completion checks", () => {
@@ -132,7 +207,7 @@ test("marks a completed project verified when records satisfy completion checks"
     createdAt: "2026-05-20T10:05:00.000Z",
   });
 
-  const model = buildLiveProjectModel({
+  const model = buildProjectOverviewModel({
     records: {
       ...baseRecords,
       projects: [project],
@@ -142,6 +217,7 @@ test("marks a completed project verified when records satisfy completion checks"
       reviews: [review],
       reports: [report],
     },
+    requestedProjectId: project.id,
   });
 
   expect(model.kind).toBe("project");
@@ -153,7 +229,7 @@ test("marks a completed project verified when records satisfy completion checks"
   expect(model.latestReport?.id).toBe(report.id);
 });
 
-test("orders live activity newest first across reports and evidence records", () => {
+test("orders project activity newest first across reports and evidence records", () => {
   const project = projectRecord({
     id: "project_activity",
     name: "Activity Project",
@@ -185,7 +261,7 @@ test("orders live activity newest first across reports and evidence records", ()
     createdAt: "2026-05-20T10:04:00.000Z",
   });
 
-  const model = buildLiveProjectModel({
+  const model = buildProjectOverviewModel({
     records: {
       ...baseRecords,
       projects: [project],
@@ -194,6 +270,7 @@ test("orders live activity newest first across reports and evidence records", ()
       measurements: [measurement],
       reports: [report],
     },
+    requestedProjectId: project.id,
   });
 
   expect(model.kind).toBe("project");
@@ -236,7 +313,7 @@ test("selects the latest project briefing and includes it in activity", () => {
     createdAt: "2026-05-20T10:03:00.000Z",
   });
 
-  const model = buildLiveProjectModel({
+  const model = buildProjectOverviewModel({
     records: {
       ...baseRecords,
       projects: [project, ignoredProject],
@@ -261,7 +338,7 @@ test("selects the latest project briefing and includes it in activity", () => {
   });
 });
 
-test("derives current live presentation records by key and honors hidden records", () => {
+test("derives current presentation records by key and honors hidden records", () => {
   const project = projectRecord({
     id: "project_presentation",
     name: "Presentation Project",
@@ -311,7 +388,7 @@ test("derives current live presentation records by key and honors hidden records
     createdAt: "2026-05-20T10:06:00.000Z",
   });
 
-  const model = buildLiveProjectModel({
+  const model = buildProjectOverviewModel({
     records: {
       ...baseRecords,
       projects: [project],
@@ -320,6 +397,7 @@ test("derives current live presentation records by key and honors hidden records
       liveMapEdges: [edge],
       liveNodeDetails: [detail],
     },
+    requestedProjectId: project.id,
   });
 
   expect(model.kind).toBe("project");
@@ -332,7 +410,7 @@ test("derives current live presentation records by key and honors hidden records
   expect(model.presentation.map.detailsByNodeKey.get("baseline")?.id).toBe(detail.id);
 });
 
-test("falls back to derived signals and selects the newest live focus", () => {
+test("falls back to derived signals and selects the newest current focus", () => {
   const project = projectRecord({
     id: "project_focus",
     name: "Focus Project",
@@ -357,13 +435,14 @@ test("falls back to derived signals and selects the newest live focus", () => {
     createdAt: "2026-05-20T10:03:00.000Z",
   });
 
-  const model = buildLiveProjectModel({
+  const model = buildProjectOverviewModel({
     records: {
       ...baseRecords,
       projects: [project],
       briefings: [briefing],
       liveFocuses: [latestFocus, firstFocus],
     },
+    requestedProjectId: project.id,
   });
 
   expect(model.kind).toBe("project");
@@ -389,6 +468,7 @@ function metadata(createdAt: string): SyncMetadata {
 function projectRecord(input: {
   readonly id: string;
   readonly name: string;
+  readonly status?: ProjectRecord["status"];
   readonly createdAt: string;
 }): ProjectRecord {
   return {
@@ -396,7 +476,7 @@ function projectRecord(input: {
     name: input.name,
     repositoryPath: "/tmp/client",
     goalMarkdown: "Exercise the client UI.",
-    status: "active",
+    status: input.status ?? "active",
     createdBy: human,
     metadata: metadata(input.createdAt),
   } as ProjectRecord;

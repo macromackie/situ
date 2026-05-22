@@ -26,23 +26,29 @@ import type { TaskRecord } from "@situ/tasks";
 
 import {
   ActivityTimeline,
-  LiveBriefingPanel,
-  LiveReportSurface,
+  BriefingPanel,
+  ProjectIndexSurface,
+  ProjectOverviewSurface,
   StatusStrip,
   StyleRoot,
   VerificationPanel,
 } from "./main.js";
-import { buildLiveProjectModel, type LiveProjectModel, type LiveRecords } from "./model.js";
+import {
+  buildProjectIndexModel,
+  buildProjectOverviewModel,
+  type ProjectOverviewModel,
+  type ClientRecords,
+} from "./model.js";
 
-type ProjectModel = Extract<LiveProjectModel, { readonly kind: "project" }>;
+type ProjectModel = Extract<ProjectOverviewModel, { readonly kind: "project" }>;
 type StoryFrameProps = {
   readonly children: ReactNode;
   readonly width?: "paper" | "compact";
 };
 
-const meta: Meta<typeof LiveReportSurface> = {
-  title: "Live/Report UI",
-  component: LiveReportSurface,
+const meta: Meta<typeof ProjectOverviewSurface> = {
+  title: "Client/Project Overview",
+  component: ProjectOverviewSurface,
   parameters: {
     layout: "fullscreen",
   },
@@ -50,38 +56,42 @@ const meta: Meta<typeof LiveReportSurface> = {
 
 export default meta;
 
-type Story = StoryObj<typeof LiveReportSurface>;
+type Story = StoryObj<typeof ProjectOverviewSurface>;
 
 export const AutoresearchRun: Story = {
-  render: () => <LiveReportSurface model={autoresearchModel} synced />,
+  render: () => <ProjectOverviewSurface model={autoresearchModel} synced />,
 };
 
 export const OnTrackRun: Story = {
-  render: () => <LiveReportSurface model={onTrackModel} synced />,
+  render: () => <ProjectOverviewSurface model={onTrackModel} synced />,
 };
 
 export const WatchRun: Story = {
-  render: () => <LiveReportSurface model={watchModel} synced />,
+  render: () => <ProjectOverviewSurface model={watchModel} synced />,
 };
 
 export const BlockedRun: Story = {
-  render: () => <LiveReportSurface model={blockedModel} synced />,
+  render: () => <ProjectOverviewSurface model={blockedModel} synced />,
 };
 
 export const CompleteRun: Story = {
-  render: () => <LiveReportSurface model={completeModel} synced />,
+  render: () => <ProjectOverviewSurface model={completeModel} synced />,
 };
 
 export const NoBriefingYet: Story = {
-  render: () => <LiveReportSurface model={noBriefingModel} synced />,
+  render: () => <ProjectOverviewSurface model={noBriefingModel} synced />,
 };
 
-export const NoLiveMapYet: Story = {
-  render: () => <LiveReportSurface model={noLiveMapModel} synced />,
+export const NoRunMapYet: Story = {
+  render: () => <ProjectOverviewSurface model={noRunMapModel} synced />,
 };
 
 export const EmptyState: Story = {
-  render: () => <LiveReportSurface model={emptyModel} synced={false} />,
+  render: () => <ProjectOverviewSurface model={emptyModel} synced={false} />,
+};
+
+export const ProjectIndex: Story = {
+  render: () => <ProjectIndexSurface model={projectIndexModel} synced />,
 };
 
 export const BriefingAssessmentVariants: Story = {
@@ -89,7 +99,7 @@ export const BriefingAssessmentVariants: Story = {
     <StoryFrame>
       <div className="story-grid">
         {[onTrackModel, watchModel, blockedModel, completeModel].map((model) => (
-          <LiveBriefingPanel key={model.latestBriefing?.id ?? model.project.id} model={model} />
+          <BriefingPanel key={model.latestBriefing?.id ?? model.project.id} model={model} />
         ))}
       </div>
     </StoryFrame>
@@ -148,7 +158,7 @@ function ProgressiveSwapStory() {
           </button>
         ))}
       </div>
-      <LiveBriefingPanel model={model} />
+      <BriefingPanel model={model} />
     </StoryFrame>
   );
 }
@@ -466,13 +476,13 @@ const noBriefingModel = modelWithBriefing(undefined, {
   includeBriefing: false,
 });
 
-const noLiveMapModel = modelWithBriefing(
+const noRunMapModel = modelWithBriefing(
   briefing({
     id: "briefing_story_no_live_map" as SituId<"briefing">,
     title: "Briefing without map records",
     stage: "evaluating",
     assessment: "watch",
-    headlineMarkdown: "The briefing is available, but the agent has not published a live map yet.",
+    headlineMarkdown: "The briefing is available, but the agent has not published a run map yet.",
     blocks: [
       {
         type: "status",
@@ -483,12 +493,34 @@ const noLiveMapModel = modelWithBriefing(
     createdAt: "2026-05-20T16:09:00.000Z",
   }),
   {
-    includeLiveMap: false,
+    includeRunMap: false,
   },
 );
 
-const emptyModel = buildLiveProjectModel({
+const emptyModel = buildProjectOverviewModel({
   records: emptyRecords(),
+});
+
+const projectIndexModel = buildProjectIndexModel({
+  records: {
+    ...emptyRecords(),
+    projects: [
+      projectRecord(),
+      projectRecord({
+        id: "project_story_ranker" as SituId<"project">,
+        name: "Ranker evaluation",
+        repositoryPath: "/Users/scott/situ/workspaces/ranker-eval",
+        createdAt: "2026-05-19T15:00:00.000Z",
+      }),
+      projectRecord({
+        id: "project_story_archive" as SituId<"project">,
+        name: "Archived parser pass",
+        repositoryPath: "/Users/scott/situ/workspaces/parser-archive",
+        status: "archived",
+        createdAt: "2026-05-18T12:00:00.000Z",
+      }),
+    ],
+  },
 });
 
 // ── Autoresearch story ────────────────────────────────────────────────────────
@@ -558,7 +590,7 @@ const autoresearchModel = (() => {
       metadata: metadata(`2026-05-20T16:${String(i).padStart(2, "0")}:01.000Z`),
     }));
 
-  const records: LiveRecords = {
+  const records: ClientRecords = {
     ...emptyRecords(),
     projects: [projectRecord()],
     tasks: [taskRecord({ status: "in_progress" })],
@@ -646,7 +678,7 @@ const autoresearchModel = (() => {
     notifications: [],
   };
 
-  const model = buildLiveProjectModel({ records, requestedProjectId: projectId });
+  const model = buildProjectOverviewModel({ records, requestedProjectId: projectId });
   if (model.kind !== "project")
     throw new Error("Expected autoresearch story to build a project model.");
   return model;
@@ -662,7 +694,7 @@ function modelWithBriefing(
     readonly experimentStatus?: ExperimentRecord["status"];
     readonly alternateExperimentStatus?: ExperimentRecord["status"];
     readonly reviewDecision?: ReviewRecord["decision"];
-    readonly includeLiveMap?: boolean;
+    readonly includeRunMap?: boolean;
   } = {},
 ): ProjectModel {
   const records = storyRecords({
@@ -673,9 +705,9 @@ function modelWithBriefing(
     experimentStatus: options.experimentStatus ?? "running",
     alternateExperimentStatus: options.alternateExperimentStatus ?? "planned",
     reviewDecision: options.reviewDecision ?? "commented",
-    includeLiveMap: options.includeLiveMap ?? true,
+    includeRunMap: options.includeRunMap ?? true,
   });
-  const model = buildLiveProjectModel({
+  const model = buildProjectOverviewModel({
     records,
     requestedProjectId: projectId,
   });
@@ -695,8 +727,8 @@ function storyRecords(input: {
   readonly experimentStatus: ExperimentRecord["status"];
   readonly alternateExperimentStatus: ExperimentRecord["status"];
   readonly reviewDecision: ReviewRecord["decision"];
-  readonly includeLiveMap: boolean;
-}): LiveRecords {
+  readonly includeRunMap: boolean;
+}): ClientRecords {
   const report = input.includeReport
     ? reportRecord({
         id: "report_story_checkpoint" as SituId<"report">,
@@ -769,9 +801,9 @@ function storyRecords(input: {
     ],
     reports: report === undefined ? [] : [report],
     briefings: input.briefing === undefined ? [] : [input.briefing],
-    ...livePresentationRecords({
+    ...presentationRecords({
       assessment: input.briefing?.assessment ?? "watch",
-      includeLiveMap: input.includeLiveMap,
+      includeRunMap: input.includeRunMap,
       includeUnreadNotification: input.includeUnreadNotification,
       taskStatus: input.taskStatus,
       experimentStatus: input.experimentStatus,
@@ -803,15 +835,15 @@ function storyRecords(input: {
   };
 }
 
-function livePresentationRecords(input: {
+function presentationRecords(input: {
   readonly assessment: BriefingRecord["assessment"];
-  readonly includeLiveMap: boolean;
+  readonly includeRunMap: boolean;
   readonly includeUnreadNotification: boolean;
   readonly taskStatus: TaskRecord["status"];
   readonly experimentStatus: ExperimentRecord["status"];
   readonly reviewDecision: ReviewRecord["decision"];
 }): Pick<
-  LiveRecords,
+  ClientRecords,
   "liveSignals" | "liveMapNodes" | "liveMapEdges" | "liveFocuses" | "liveNodeDetails"
 > {
   const tone = presentationTone(input.assessment, input.includeUnreadNotification);
@@ -877,15 +909,15 @@ function livePresentationRecords(input: {
         createdAt: "2026-05-20T16:07:40.000Z",
       }),
     ],
-    liveMapNodes: input.includeLiveMap
+    liveMapNodes: input.includeRunMap
       ? liveMapNodesForScenario({
           assessment: input.assessment,
           includeUnreadNotification: input.includeUnreadNotification,
           reportReady,
         })
       : [],
-    liveMapEdges: input.includeLiveMap ? liveMapEdgesForScenario(input.assessment) : [],
-    liveFocuses: input.includeLiveMap
+    liveMapEdges: input.includeRunMap ? liveMapEdgesForScenario(input.assessment) : [],
+    liveFocuses: input.includeRunMap
       ? [
           liveFocusRecord({
             id: "live_focus_story_current" as SituId<"live_focus">,
@@ -905,7 +937,7 @@ function livePresentationRecords(input: {
           }),
         ]
       : [],
-    liveNodeDetails: input.includeLiveMap
+    liveNodeDetails: input.includeRunMap
       ? liveNodeDetailsForScenario({ assessment: input.assessment, reportReady })
       : [],
   };
@@ -1041,7 +1073,7 @@ function liveNodeDetailsForScenario(input: {
   ];
 }
 
-function emptyRecords(): LiveRecords {
+function emptyRecords(): ClientRecords {
   return {
     projects: [],
     tasks: [],
@@ -1063,15 +1095,23 @@ function emptyRecords(): LiveRecords {
   };
 }
 
-function projectRecord(): ProjectRecord {
+function projectRecord(
+  input: {
+    readonly id?: SituId<"project">;
+    readonly name?: string;
+    readonly repositoryPath?: string;
+    readonly status?: ProjectRecord["status"];
+    readonly createdAt?: string;
+  } = {},
+): ProjectRecord {
   return {
-    id: projectId,
-    name: "Live parser repair",
-    repositoryPath: "/Users/scott/situ/workspaces/parser-repair",
+    id: input.id ?? projectId,
+    name: input.name ?? "Parser repair",
+    repositoryPath: input.repositoryPath ?? "/Users/scott/situ/workspaces/parser-repair",
     goalMarkdown: "Improve parser accuracy without a large rewrite.",
-    status: "active",
+    status: input.status ?? "active",
     createdBy: human,
-    metadata: metadata("2026-05-20T16:00:00.000Z"),
+    metadata: metadata(input.createdAt ?? "2026-05-20T16:00:00.000Z"),
   };
 }
 

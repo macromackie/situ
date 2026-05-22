@@ -26,7 +26,7 @@ import {
 } from "../reports/mdx/snapshot-to-props.js";
 import type { ProjectReportSnapshot, ReportTargetAttachments } from "../reports/types.js";
 
-export type LiveRecords = {
+export type ClientRecords = {
   readonly projects: readonly ProjectRecord[];
   readonly tasks: readonly TaskRecord[];
   readonly baselines: readonly BaselineRecord[];
@@ -46,7 +46,13 @@ export type LiveRecords = {
   readonly notifications: readonly NotificationRecord[];
 };
 
-export type LiveProjectModel =
+export type ProjectIndexModel = {
+  readonly activeProjects: readonly ProjectRecord[];
+  readonly archivedProjects: readonly ProjectRecord[];
+  readonly allProjects: readonly ProjectRecord[];
+};
+
+export type ProjectOverviewModel =
   | {
       readonly kind: "empty";
       readonly activeProjects: readonly ProjectRecord[];
@@ -63,16 +69,16 @@ export type LiveProjectModel =
       readonly project: ProjectRecord;
       readonly snapshot: ProjectReportSnapshot;
       readonly derived: SnapshotDerivedModel;
-      readonly records: LiveProjectRecords;
-      readonly status: LiveStatus;
-      readonly verification: LiveVerification;
+      readonly records: ProjectOverviewRecords;
+      readonly status: ProjectStatusSummary;
+      readonly verification: ProjectVerification;
       readonly latestReport?: ReportRecord;
       readonly latestBriefing?: BriefingRecord;
-      readonly activity: readonly LiveActivityItem[];
-      readonly presentation: LivePresentationModel;
+      readonly activity: readonly ProjectActivityItem[];
+      readonly presentation: ProjectPresentationModel;
     };
 
-export type LiveProjectRecords = {
+export type ProjectOverviewRecords = {
   readonly tasks: readonly TaskRecord[];
   readonly baselines: readonly BaselineRecord[];
   readonly experiments: readonly ExperimentRecord[];
@@ -91,17 +97,17 @@ export type LiveProjectRecords = {
   readonly notifications: readonly NotificationRecord[];
 };
 
-export type LivePresentationModel = {
-  readonly signals: readonly CurrentLiveSignal[];
+export type ProjectPresentationModel = {
+  readonly signals: readonly CurrentSignal[];
   readonly map: {
-    readonly nodes: readonly CurrentLiveNode[];
-    readonly edges: readonly CurrentLiveEdge[];
-    readonly focus?: CurrentLiveFocus;
+    readonly nodes: readonly CurrentMapNode[];
+    readonly edges: readonly CurrentMapEdge[];
+    readonly focus?: CurrentFocus;
     readonly detailsByNodeKey: ReadonlyMap<string, LiveNodeDetailRecord>;
   };
 };
 
-export type CurrentLiveSignal = {
+export type CurrentSignal = {
   readonly id: string;
   readonly slot: string;
   readonly label: string;
@@ -112,11 +118,11 @@ export type CurrentLiveSignal = {
   readonly source: "record" | "derived";
 };
 
-export type CurrentLiveNode = LiveMapNodeRecord;
-export type CurrentLiveEdge = LiveMapEdgeRecord;
-export type CurrentLiveFocus = LiveFocusRecord;
+export type CurrentMapNode = LiveMapNodeRecord;
+export type CurrentMapEdge = LiveMapEdgeRecord;
+export type CurrentFocus = LiveFocusRecord;
 
-export type LiveStatus = {
+export type ProjectStatusSummary = {
   readonly label: string;
   readonly tone: "good" | "warning" | "bad" | "neutral";
   readonly isIdle: boolean;
@@ -136,12 +142,12 @@ export type LiveStatus = {
   };
 };
 
-export type LiveVerification = {
+export type ProjectVerification = {
   readonly ok: boolean;
-  readonly checks: readonly LiveVerificationCheck[];
+  readonly checks: readonly ProjectVerificationCheck[];
 };
 
-export type LiveVerificationCheck = {
+export type ProjectVerificationCheck = {
   readonly name:
     | "has-project"
     | "no-active-tasks"
@@ -152,16 +158,16 @@ export type LiveVerificationCheck = {
   readonly label: string;
   readonly ok: boolean;
   readonly summary: string;
-  readonly blockingRecords: readonly LiveBlockingRecord[];
+  readonly blockingRecords: readonly ProjectBlockingRecord[];
 };
 
-export type LiveBlockingRecord = {
+export type ProjectBlockingRecord = {
   readonly targetKind: TargetKind;
   readonly targetId: string;
   readonly reason: string;
 };
 
-export type LiveActivityItem = {
+export type ProjectActivityItem = {
   readonly id: string;
   readonly kind:
     | "report"
@@ -180,10 +186,21 @@ export type LiveActivityItem = {
   readonly tone: "good" | "warning" | "bad" | "neutral";
 };
 
-export function buildLiveProjectModel(input: {
-  readonly records: LiveRecords;
+export function buildProjectIndexModel(input: {
+  readonly records: ClientRecords;
+}): ProjectIndexModel {
+  const allProjects = sortRecords(input.records.projects);
+  return {
+    activeProjects: allProjects.filter((project) => project.status === "active"),
+    archivedProjects: allProjects.filter((project) => project.status !== "active"),
+    allProjects,
+  };
+}
+
+export function buildProjectOverviewModel(input: {
+  readonly records: ClientRecords;
   readonly requestedProjectId?: string;
-}): LiveProjectModel {
+}): ProjectOverviewModel {
   const allProjects = sortRecords(input.records.projects);
   const activeProjects = allProjects.filter((project) => project.status === "active");
   const project = selectProject({
@@ -214,8 +231,8 @@ export function buildLiveProjectModel(input: {
     projectRecords,
   });
   const derived = deriveSnapshotModel(snapshot);
-  const status = deriveLiveStatus({ records: projectRecords });
-  const verification = deriveLiveVerification({
+  const status = deriveProjectStatusSummary({ records: projectRecords });
+  const verification = deriveProjectVerification({
     project,
     records: projectRecords,
   });
@@ -231,7 +248,7 @@ export function buildLiveProjectModel(input: {
     project,
     records: projectRecords,
   });
-  const presentation = buildLivePresentation({
+  const presentation = buildProjectPresentation({
     derived,
     latestBriefing,
     records: projectRecords,
@@ -258,17 +275,17 @@ export function buildLiveProjectModel(input: {
   };
 }
 
-function buildLivePresentation(input: {
+function buildProjectPresentation(input: {
   readonly derived: SnapshotDerivedModel;
   readonly latestBriefing?: BriefingRecord;
-  readonly records: LiveProjectRecords;
-  readonly status: LiveStatus;
-  readonly verification: LiveVerification;
-}): LivePresentationModel {
+  readonly records: ProjectOverviewRecords;
+  readonly status: ProjectStatusSummary;
+  readonly verification: ProjectVerification;
+}): ProjectPresentationModel {
   const recordSignals = currentRecordsByKey(input.records.liveSignals, (signal) => signal.slot)
     .filter((signal) => signal.visibility === "visible")
     .map(
-      (signal): CurrentLiveSignal => ({
+      (signal): CurrentSignal => ({
         id: signal.id,
         slot: signal.slot,
         label: signal.label,
@@ -282,7 +299,7 @@ function buildLivePresentation(input: {
 
   const nodes = currentRecordsByKey(input.records.liveMapNodes, (node) => node.nodeKey)
     .filter((node) => node.visibility === "visible")
-    .sort(compareLiveNodesAsc);
+    .sort(compareMapNodesAsc);
   const nodeKeySet = new Set(nodes.map((node) => node.nodeKey));
   const edges = currentRecordsByKey(input.records.liveMapEdges, (edge) => edge.edgeKey)
     .filter(
@@ -327,23 +344,17 @@ function selectProject(input: {
   readonly projects: readonly ProjectRecord[];
   readonly requestedProjectId?: string;
 }): ProjectRecord | undefined {
-  if (input.requestedProjectId !== undefined) {
-    const requested = input.projects.find((project) => project.id === input.requestedProjectId);
-    if (requested !== undefined) {
-      return requested;
-    }
+  if (input.requestedProjectId === undefined) {
+    return undefined;
   }
 
-  return (
-    latestRecord(input.projects.filter((project) => project.status === "active")) ??
-    latestRecord(input.projects)
-  );
+  return input.projects.find((project) => project.id === input.requestedProjectId);
 }
 
 function filterProjectRecords(input: {
-  readonly records: LiveRecords;
+  readonly records: ClientRecords;
   readonly project: ProjectRecord;
-}): LiveProjectRecords {
+}): ProjectOverviewRecords {
   const tasks = sortRecords(
     input.records.tasks.filter((task) => task.projectId === input.project.id),
   );
@@ -461,9 +472,9 @@ function filterProjectRecords(input: {
 }
 
 function buildProjectReportSnapshot(input: {
-  readonly records: LiveRecords;
+  readonly records: ClientRecords;
   readonly project: ProjectRecord;
-  readonly projectRecords: LiveProjectRecords;
+  readonly projectRecords: ProjectOverviewRecords;
 }): ProjectReportSnapshot {
   const experimentsByTaskId = new Map<string, ExperimentRecord[]>();
   for (const experiment of input.projectRecords.experiments) {
@@ -537,7 +548,7 @@ function buildProjectReportSnapshot(input: {
 }
 
 function collectTargetAttachments(input: {
-  readonly records: LiveRecords;
+  readonly records: ClientRecords;
   readonly targetKind: TargetKind;
   readonly targetId: string;
 }): ReportTargetAttachments {
@@ -551,7 +562,9 @@ function collectTargetAttachments(input: {
   };
 }
 
-function deriveLiveStatus(input: { readonly records: LiveProjectRecords }): LiveStatus {
+function deriveProjectStatusSummary(input: {
+  readonly records: ProjectOverviewRecords;
+}): ProjectStatusSummary {
   const tasks = countByStatus(input.records.tasks, [
     "triage",
     "backlog",
@@ -609,7 +622,7 @@ function deriveLiveStatus(input: { readonly records: LiveProjectRecords }): Live
 }
 
 function statusLabel(input: {
-  readonly work: LiveStatus["work"];
+  readonly work: ProjectStatusSummary["work"];
   readonly isIdle: boolean;
 }): string {
   if (input.work.attention > 0) {
@@ -631,9 +644,9 @@ function statusLabel(input: {
 }
 
 function statusTone(input: {
-  readonly work: LiveStatus["work"];
+  readonly work: ProjectStatusSummary["work"];
   readonly isIdle: boolean;
-}): LiveStatus["tone"] {
+}): ProjectStatusSummary["tone"] {
   if (input.work.attention > 0) {
     return "bad";
   }
@@ -646,10 +659,10 @@ function statusTone(input: {
   return "neutral";
 }
 
-function deriveLiveVerification(input: {
+function deriveProjectVerification(input: {
   readonly project: ProjectRecord;
-  readonly records: LiveProjectRecords;
-}): LiveVerification {
+  readonly records: ProjectOverviewRecords;
+}): ProjectVerification {
   const acceptedExperiments = input.records.experiments.filter(
     (experiment) => experiment.status === "accepted",
   );
@@ -672,7 +685,7 @@ function deriveLiveVerification(input: {
       .map((artifact) => artifact.target.targetId),
   );
 
-  const checks: LiveVerificationCheck[] = [
+  const checks: ProjectVerificationCheck[] = [
     {
       name: "has-project",
       label: "Project exists",
@@ -777,8 +790,8 @@ function deriveLiveVerification(input: {
 function blockingCheck(input: {
   readonly okSummary: string;
   readonly failSummary: string;
-  readonly blockingRecords: readonly LiveBlockingRecord[];
-}): Pick<LiveVerificationCheck, "ok" | "summary" | "blockingRecords"> {
+  readonly blockingRecords: readonly ProjectBlockingRecord[];
+}): Pick<ProjectVerificationCheck, "ok" | "summary" | "blockingRecords"> {
   const ok = input.blockingRecords.length === 0;
   return {
     ok,
@@ -811,9 +824,9 @@ function selectLatestProjectBriefing(input: {
 
 function collectActivityItems(input: {
   readonly project: ProjectRecord;
-  readonly records: LiveProjectRecords;
-}): readonly LiveActivityItem[] {
-  const items: LiveActivityItem[] = [];
+  readonly records: ProjectOverviewRecords;
+}): readonly ProjectActivityItem[] {
+  const items: ProjectActivityItem[] = [];
 
   for (const report of input.records.reports) {
     items.push({
@@ -937,11 +950,11 @@ function collectActivityItems(input: {
 function fallbackPresentationSignals(input: {
   readonly derived: SnapshotDerivedModel;
   readonly latestBriefing?: BriefingRecord;
-  readonly status: LiveStatus;
-  readonly verification: LiveVerification;
-}): readonly CurrentLiveSignal[] {
+  readonly status: ProjectStatusSummary;
+  readonly verification: ProjectVerification;
+}): readonly CurrentSignal[] {
   const primary = input.derived.primaryMetric;
-  const signals: CurrentLiveSignal[] = [
+  const signals: CurrentSignal[] = [
     {
       id: "derived-assessment",
       slot: "assessment",
@@ -956,7 +969,7 @@ function fallbackPresentationSignals(input: {
           : compactText(input.latestBriefing.headlineMarkdown),
       tone:
         input.latestBriefing === undefined
-          ? statusToLiveTone(input.status.tone)
+          ? statusToPresentationTone(input.status.tone)
           : briefingAssessmentTone(input.latestBriefing.assessment),
       refs: [],
       source: "derived",
@@ -967,7 +980,7 @@ function fallbackPresentationSignals(input: {
       label: "Work",
       value: `${input.status.work.running} running · ${input.status.work.review} review`,
       summary: `${input.status.work.pending} pending · ${input.status.work.attention} attention`,
-      tone: statusToLiveTone(input.status.tone),
+      tone: statusToPresentationTone(input.status.tone),
       refs: [],
       source: "derived",
     },
@@ -1020,7 +1033,7 @@ function briefingAssessmentTone(assessment: BriefingRecord["assessment"]): LiveT
   }
 }
 
-function statusToLiveTone(tone: LiveStatus["tone"]): LiveTone {
+function statusToPresentationTone(tone: ProjectStatusSummary["tone"]): LiveTone {
   switch (tone) {
     case "good":
       return "good";
@@ -1125,7 +1138,7 @@ function compareRecordsAsc(left: TimestampedRecord, right: TimestampedRecord): n
   );
 }
 
-function compareLiveNodesAsc(left: LiveMapNodeRecord, right: LiveMapNodeRecord): number {
+function compareMapNodesAsc(left: LiveMapNodeRecord, right: LiveMapNodeRecord): number {
   const leftTime = left.occurredAt ?? left.metadata.createdAt;
   const rightTime = right.occurredAt ?? right.metadata.createdAt;
   return leftTime.localeCompare(rightTime) || left.id.localeCompare(right.id);
@@ -1138,7 +1151,7 @@ function compareRecordsDesc(left: TimestampedRecord, right: TimestampedRecord): 
   );
 }
 
-function compareActivityItemsDesc(left: LiveActivityItem, right: LiveActivityItem): number {
+function compareActivityItemsDesc(left: ProjectActivityItem, right: ProjectActivityItem): number {
   return right.createdAt.localeCompare(left.createdAt) || right.id.localeCompare(left.id);
 }
 
@@ -1158,7 +1171,7 @@ function actorLabel(actor: ActorRef): string {
   return actor.displayName ?? `${actor.actorKind}/${actor.actorId}`;
 }
 
-function briefingTone(assessment: BriefingRecord["assessment"]): LiveActivityItem["tone"] {
+function briefingTone(assessment: BriefingRecord["assessment"]): ProjectActivityItem["tone"] {
   switch (assessment) {
     case "complete":
     case "on_track":

@@ -63,11 +63,13 @@ import {
 import { actorLabel } from "../reports/narratives.js";
 import type { ReportTargetAttachments } from "../reports/types.js";
 import {
-  buildLiveProjectModel,
-  type LiveActivityItem,
-  type CurrentLiveNode,
-  type LiveProjectModel,
-  type LiveRecords,
+  buildProjectIndexModel,
+  buildProjectOverviewModel,
+  type ProjectActivityItem,
+  type CurrentMapNode,
+  type ProjectIndexModel,
+  type ProjectOverviewModel,
+  type ClientRecords,
 } from "./model.js";
 
 const clientSchemaVersion = "situ-v2";
@@ -180,7 +182,7 @@ function useRecordList<TRecord>(prefix: string): readonly TRecord[] {
   );
 }
 
-function useLiveRecords(): LiveRecords {
+function useClientRecords(): ClientRecords {
   return {
     projects: useRecordList<ProjectRecord>("projects/"),
     tasks: useRecordList<TaskRecord>("tasks/"),
@@ -202,64 +204,177 @@ function useLiveRecords(): LiveRecords {
   };
 }
 
-function LiveReportApp(props: {
+function ProjectOverviewApp(props: {
   readonly requestedProjectId?: string;
   readonly navigateToProject: NavigateToProject;
 }) {
   const synced = useSynced();
-  const records = useLiveRecords();
+  const records = useClientRecords();
   const model = useMemo(
-    () => buildLiveProjectModel({ records, requestedProjectId: props.requestedProjectId }),
+    () => buildProjectOverviewModel({ records, requestedProjectId: props.requestedProjectId }),
     [records, props.requestedProjectId],
   );
 
   return (
-    <LiveReportSurface model={model} synced={synced} navigateToProject={props.navigateToProject} />
+    <ProjectOverviewSurface
+      model={model}
+      synced={synced}
+      navigateToProject={props.navigateToProject}
+    />
   );
 }
 
-export function LiveReportSurface(props: {
-  readonly model: LiveProjectModel;
+function ProjectIndexApp(props: { readonly navigateToProject: (projectId: string) => void }) {
+  const synced = useSynced();
+  const records = useClientRecords();
+  const model = useMemo(() => buildProjectIndexModel({ records }), [records]);
+
+  return (
+    <ProjectIndexSurface
+      model={model}
+      synced={synced}
+      navigateToProject={props.navigateToProject}
+    />
+  );
+}
+
+export function ProjectIndexSurface(props: {
+  readonly model: ProjectIndexModel;
+  readonly synced: boolean;
+  readonly navigateToProject?: (projectId: string) => void;
+}) {
+  return (
+    <div className="live-shell">
+      <StyleRoot />
+      <ClientTopbar synced={props.synced} />
+      <main className="live-doc">
+        <article className="live-article project-index-article">
+          <div className="brief-head project-index-head">
+            <p className="brief-kicker">situ · projects</p>
+            <h1 className="brief-title">Projects</h1>
+            <p className="brief-lede">Choose a project to open its overview.</p>
+          </div>
+
+          {props.model.allProjects.length === 0 ? (
+            <p className="project-index-empty">No projects are available in local state yet.</p>
+          ) : (
+            <div className="project-index-groups">
+              <ProjectIndexGroup
+                title="Active"
+                projects={props.model.activeProjects}
+                navigateToProject={props.navigateToProject}
+              />
+              <ProjectIndexGroup
+                title="Archived"
+                projects={props.model.archivedProjects}
+                navigateToProject={props.navigateToProject}
+              />
+            </div>
+          )}
+        </article>
+      </main>
+    </div>
+  );
+}
+
+function ProjectIndexGroup(props: {
+  readonly title: string;
+  readonly projects: readonly ProjectRecord[];
+  readonly navigateToProject?: (projectId: string) => void;
+}) {
+  if (props.projects.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="project-index-group" aria-labelledby={`project-group-${props.title}`}>
+      <h2 className="project-index-heading" id={`project-group-${props.title}`}>
+        {props.title}
+      </h2>
+      <div className="project-index-list">
+        {props.projects.map((project) => (
+          <ProjectIndexItem
+            key={project.id}
+            project={project}
+            navigateToProject={props.navigateToProject}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ProjectIndexItem(props: {
+  readonly project: ProjectRecord;
+  readonly navigateToProject?: (projectId: string) => void;
+}) {
+  const updatedAt = props.project.metadata.updatedAt;
+
+  return (
+    <a
+      className="project-index-item"
+      href={`/projects/${encodeURIComponent(props.project.id)}`}
+      onClick={(event) => {
+        if (props.navigateToProject === undefined) {
+          return;
+        }
+        event.preventDefault();
+        props.navigateToProject(props.project.id);
+      }}
+    >
+      <span className="project-index-main">
+        <span className="project-index-title">{props.project.name}</span>
+        <span className="project-index-meta">
+          <span>{props.project.repositoryPath}</span>
+          <time dateTime={updatedAt}>Updated {formatTimestamp(updatedAt)}</time>
+        </span>
+      </span>
+      <span className="project-index-status">{titleCase(props.project.status)}</span>
+    </a>
+  );
+}
+
+export function ProjectOverviewSurface(props: {
+  readonly model: ProjectOverviewModel;
   readonly synced: boolean;
   readonly navigateToProject?: NavigateToProject;
 }) {
   return (
     <div className="live-shell">
       <StyleRoot />
-      <LiveTopbar
+      <ClientTopbar
         model={props.model}
         synced={props.synced}
         navigateToProject={props.navigateToProject}
       />
       <main className="live-doc">
         {props.model.kind === "empty" ? (
-          <EmptyProjectView model={props.model} />
+          <NoProjectView model={props.model} />
         ) : (
-          <LiveDoc model={props.model} />
+          <ProjectOverviewDocument model={props.model} />
         )}
       </main>
     </div>
   );
 }
 
-function readLegacyProjectSearchParam(): string | undefined {
-  const projectId = new URLSearchParams(window.location.search).get("project");
-  return projectId === null || projectId.trim() === "" ? undefined : projectId;
-}
-
 // ── Topbar ───────────────────────────────────────────────────────────────────
 
-export function LiveTopbar(props: {
-  readonly model: LiveProjectModel;
+export function ClientTopbar(props: {
+  readonly model?: ProjectOverviewModel;
   readonly synced: boolean;
   readonly navigateToProject?: NavigateToProject;
 }) {
   const projects =
-    props.model.activeProjects.length > 0 ? props.model.activeProjects : props.model.allProjects;
+    props.model === undefined
+      ? []
+      : props.model.activeProjects.length > 0
+        ? props.model.activeProjects
+        : props.model.allProjects;
 
-  const badge = props.model.kind === "project" ? deriveAssessmentBadge(props.model) : undefined;
+  const badge = props.model?.kind === "project" ? deriveAssessmentBadge(props.model) : undefined;
 
-  const projectName = props.model.kind === "project" ? props.model.project.name : undefined;
+  const projectName = props.model?.kind === "project" ? props.model.project.name : undefined;
 
   return (
     <header className="live-topbar">
@@ -282,17 +397,18 @@ export function LiveTopbar(props: {
           {projectName}
         </span>
       )}
-      <nav className="topbar-controls" aria-label="Live report controls">
+      <nav className="topbar-controls" aria-label="Project controls">
         {projects.length > 1 && (
           <select
             className="live-project-select"
-            value={props.model.kind === "project" ? props.model.project.id : ""}
+            value={props.model?.kind === "project" ? props.model.project.id : ""}
             onChange={(event) => {
               const value = event.currentTarget.value;
               props.navigateToProject?.(value === "" ? undefined : value);
             }}
             aria-label="Project"
           >
+            {props.model?.kind !== "project" && <option value="">Choose project</option>}
             {projects.map((project) => (
               <option key={project.id} value={project.id}>
                 {project.name}
@@ -306,14 +422,16 @@ export function LiveTopbar(props: {
           aria-label={props.synced ? "Synced" : "Syncing"}
         >
           <span className="live-dot" aria-hidden="true" />
-          {props.synced ? "Live" : "Syncing"}
+          {props.synced ? "Synced" : "Syncing"}
         </span>
       </nav>
     </header>
   );
 }
 
-function deriveAssessmentBadge(model: Extract<LiveProjectModel, { readonly kind: "project" }>): {
+function deriveAssessmentBadge(
+  model: Extract<ProjectOverviewModel, { readonly kind: "project" }>,
+): {
   label: string;
   tone: LiveTone;
 } {
@@ -358,19 +476,20 @@ function assessmentTone(assessment: BriefingRecord["assessment"]): LiveTone {
 
 // ── Empty state ───────────────────────────────────────────────────────────────
 
-export function EmptyProjectView(props: {
-  readonly model: Extract<LiveProjectModel, { readonly kind: "empty" }>;
+export function NoProjectView(props: {
+  readonly model: Extract<ProjectOverviewModel, { readonly kind: "empty" }>;
 }) {
+  const title = props.model.missingRequestedProject ? "Project not found" : "No project selected";
+  const lede = props.model.missingRequestedProject
+    ? "The requested project is not present in the local situ database."
+    : "Open a project from the projects list to view its overview.";
+
   return (
     <article className="live-article">
       <div className="brief-head">
-        <p className="brief-kicker">situ · live run</p>
-        <h1 className="brief-title">No active project</h1>
-        <p className="brief-lede">
-          {props.model.missingRequestedProject
-            ? "The requested project is not present in the local situ database."
-            : "Create or pull a project record and this page becomes a live research brief."}
-        </p>
+        <p className="brief-kicker">situ · project overview</p>
+        <h1 className="brief-title">{title}</h1>
+        <p className="brief-lede">{lede}</p>
       </div>
     </article>
   );
@@ -378,16 +497,14 @@ export function EmptyProjectView(props: {
 
 // ── Main document ─────────────────────────────────────────────────────────────
 
-function LiveDoc(props: {
-  readonly model: Extract<LiveProjectModel, { readonly kind: "project" }>;
+function ProjectOverviewDocument(props: {
+  readonly model: Extract<ProjectOverviewModel, { readonly kind: "project" }>;
 }) {
   const { model } = props;
   return (
     <article className="live-article">
       {model.missingRequestedProject && (
-        <p className="live-banner live-banner-warn">
-          Requested project not found — showing the latest active project.
-        </p>
+        <p className="live-banner live-banner-warn">Requested project not found.</p>
       )}
       <BriefingHead model={model} />
       <SignalDataline model={model} />
@@ -400,7 +517,7 @@ function LiveDoc(props: {
 // ── Briefing head: kicker + title + lede ─────────────────────────────────────
 
 function BriefingHead(props: {
-  readonly model: Extract<LiveProjectModel, { readonly kind: "project" }>;
+  readonly model: Extract<ProjectOverviewModel, { readonly kind: "project" }>;
 }) {
   const briefing = props.model.latestBriefing;
   const updatedAt =
@@ -429,7 +546,7 @@ function BriefingHead(props: {
 // ── Signal dateline ───────────────────────────────────────────────────────────
 
 function SignalDataline(props: {
-  readonly model: Extract<LiveProjectModel, { readonly kind: "project" }>;
+  readonly model: Extract<ProjectOverviewModel, { readonly kind: "project" }>;
 }) {
   // Exclude the assessment signal — it lives in the topbar badge.
   const signals = props.model.presentation.signals
@@ -453,7 +570,7 @@ function SignalDataline(props: {
 // ── Editorial blocks ──────────────────────────────────────────────────────────
 
 function EditorialBlocks(props: {
-  readonly model: Extract<LiveProjectModel, { readonly kind: "project" }>;
+  readonly model: Extract<ProjectOverviewModel, { readonly kind: "project" }>;
 }) {
   const briefing = props.model.latestBriefing;
   if (briefing === undefined) return null;
@@ -505,7 +622,7 @@ function selectEditorialBlocks(
 
 function EditorialBlock(props: {
   readonly block: BriefingBlock;
-  readonly model: Extract<LiveProjectModel, { readonly kind: "project" }>;
+  readonly model: Extract<ProjectOverviewModel, { readonly kind: "project" }>;
 }) {
   const { block } = props;
 
@@ -588,7 +705,7 @@ function formatAxisValue(v: number): string {
 }
 
 function buildChartData(
-  nodes: readonly CurrentLiveNode[],
+  nodes: readonly CurrentMapNode[],
   details: ReadonlyMap<string, LiveNodeDetailRecord>,
 ): { data: ChartRowData[]; frontierKeys: ReadonlySet<string>; hasMetrics: boolean } {
   const rawValues = nodes.map((n) => extractFirstNumericFact(details.get(n.nodeKey)));
@@ -757,7 +874,7 @@ function RunMapTooltip(props: { active?: boolean; payload?: readonly TooltipEntr
 }
 
 function RunMapSection(props: {
-  readonly model: Extract<LiveProjectModel, { readonly kind: "project" }>;
+  readonly model: Extract<ProjectOverviewModel, { readonly kind: "project" }>;
 }) {
   const { nodes, focus, detailsByNodeKey } = props.model.presentation.map;
   const [selectedKey, setSelectedKey] = useState<string | undefined>(() =>
@@ -807,7 +924,7 @@ function RunMapSection(props: {
 }
 
 function RunMapChart(props: {
-  readonly nodes: readonly CurrentLiveNode[];
+  readonly nodes: readonly CurrentMapNode[];
   readonly details: ReadonlyMap<string, LiveNodeDetailRecord>;
   readonly selectedKey?: string;
   readonly onSelect: (key: string) => void;
@@ -919,7 +1036,7 @@ function RunMapChart(props: {
 }
 
 function defaultSelectedNodeKey(
-  nodes: readonly CurrentLiveNode[],
+  nodes: readonly CurrentMapNode[],
   focusedNodeKey?: string,
 ): string | undefined {
   if (focusedNodeKey !== undefined && nodes.some((n) => n.nodeKey === focusedNodeKey)) {
@@ -933,7 +1050,7 @@ function defaultSelectedNodeKey(
 }
 
 function NodeDetailSidebar(props: {
-  readonly node?: CurrentLiveNode;
+  readonly node?: CurrentMapNode;
   readonly detail?: LiveNodeDetailRecord;
   readonly onClose: () => void;
 }) {
@@ -998,7 +1115,7 @@ function NodeDetailSidebar(props: {
 // ── Debug/storybook components (unchanged) ────────────────────────────────────
 
 export function StatusStrip(props: {
-  readonly model: Extract<LiveProjectModel, { readonly kind: "project" }>;
+  readonly model: Extract<ProjectOverviewModel, { readonly kind: "project" }>;
 }) {
   const status = props.model.status;
   const verification = props.model.verification;
@@ -1027,8 +1144,8 @@ export function StatusStrip(props: {
   );
 }
 
-export function LiveBriefingPanel(props: {
-  readonly model: Extract<LiveProjectModel, { readonly kind: "project" }>;
+export function BriefingPanel(props: {
+  readonly model: Extract<ProjectOverviewModel, { readonly kind: "project" }>;
   readonly showRecordRefs?: boolean;
 }) {
   const briefing = props.model.latestBriefing;
@@ -1065,7 +1182,7 @@ export function LiveBriefingPanel(props: {
 }
 
 export function VerificationPanel(props: {
-  readonly model: Extract<LiveProjectModel, { readonly kind: "project" }>;
+  readonly model: Extract<ProjectOverviewModel, { readonly kind: "project" }>;
 }) {
   const status = props.model.status;
   const primary = props.model.derived.primaryMetric;
@@ -1166,7 +1283,7 @@ export function LatestReport(props: { readonly report?: ReportRecord }) {
   );
 }
 
-export function ActivityTimeline(props: { readonly items: readonly LiveActivityItem[] }) {
+export function ActivityTimeline(props: { readonly items: readonly ProjectActivityItem[] }) {
   if (props.items.length === 0) {
     return (
       <p className="prose empty-note">
@@ -1197,7 +1314,7 @@ export function ActivityTimeline(props: { readonly items: readonly LiveActivityI
 }
 
 export function EvidencePanel(props: {
-  readonly model: Extract<LiveProjectModel, { readonly kind: "project" }>;
+  readonly model: Extract<ProjectOverviewModel, { readonly kind: "project" }>;
 }) {
   if (props.model.snapshot.tasks.length === 0) {
     return <p className="prose empty-note">No tasks or experiments have been recorded yet.</p>;
@@ -1257,7 +1374,7 @@ export function EvidencePanel(props: {
 }
 
 export function AppendixPanel(props: {
-  readonly model: Extract<LiveProjectModel, { readonly kind: "project" }>;
+  readonly model: Extract<ProjectOverviewModel, { readonly kind: "project" }>;
 }) {
   return (
     <>
@@ -1380,6 +1497,10 @@ function formatTimestamp(value: string): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function titleCase(value: string): string {
+  return value.replace(/_/g, " ").replace(/\b\w/g, (match) => match.toUpperCase());
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -1615,6 +1736,123 @@ const liveCss = `
   border: 1px solid color-mix(in srgb, var(--bad) 35%, var(--rule));
   color: var(--bad);
   background: var(--bad-soft);
+}
+
+/* ── Project index ─────────────────────────────────────────────────────── */
+
+.project-index-article {
+  max-width: 820px;
+}
+
+.project-index-head {
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.project-index-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 34px;
+  margin-top: 32px;
+}
+
+.project-index-heading {
+  margin: 0 0 12px;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.project-index-list {
+  display: grid;
+  gap: 10px;
+}
+
+.project-index-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  min-height: 76px;
+  padding: 16px 18px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: white;
+  color: inherit;
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgba(22, 24, 29, 0.03);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+.project-index-item:hover {
+  border-color: color-mix(in srgb, var(--ink) 24%, var(--rule));
+  box-shadow: 0 6px 16px rgba(22, 24, 29, 0.06);
+  transform: translateY(-1px);
+}
+
+.project-index-item:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.project-index-main {
+  min-width: 0;
+}
+
+.project-index-title {
+  display: block;
+  overflow-wrap: anywhere;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.project-index-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 7px;
+  font-family: var(--sans);
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.project-index-meta span,
+.project-index-meta time {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.project-index-status {
+  justify-self: end;
+  padding: 4px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: var(--paper-bg);
+  white-space: nowrap;
+}
+
+.project-index-empty {
+  margin: 32px 0 0;
+  padding: 24px 0;
+  border-top: 1px solid var(--rule);
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--muted);
 }
 
 /* ── Briefing head ──────────────────────────────────────────────────────── */
@@ -2262,6 +2500,16 @@ const liveCss = `
     font-size: 15px;
   }
 
+  .project-index-item {
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 10px;
+  }
+
+  .project-index-status {
+    justify-self: start;
+  }
+
   .signal-dateline {
     flex-wrap: wrap;
   }
@@ -2304,20 +2552,28 @@ const liveCss = `
 
 // ── Router and entry point ────────────────────────────────────────────────────
 
-function LiveRouteRoot() {
+function ClientRouteRoot() {
   return <Outlet />;
 }
 
-function LiveIndexRoute() {
-  return <LiveRoutedReport requestedProjectId={readLegacyProjectSearchParam()} />;
+function ProjectIndexRoute() {
+  const navigate = useNavigate();
+  const navigateToProject = useCallback(
+    (projectId: string): void => {
+      void navigate({ to: "/projects/$projectId", params: { projectId } });
+    },
+    [navigate],
+  );
+
+  return <ProjectIndexApp navigateToProject={navigateToProject} />;
 }
 
-function LiveProjectRoute() {
+function ProjectRoute() {
   const { projectId } = projectRoute.useParams();
-  return <LiveRoutedReport requestedProjectId={projectId} />;
+  return <ProjectOverviewRoute requestedProjectId={projectId} />;
 }
 
-function LiveRoutedReport(props: { readonly requestedProjectId?: string }) {
+function ProjectOverviewRoute(props: { readonly requestedProjectId?: string }) {
   const navigate = useNavigate();
   const navigateToProject = useCallback(
     (projectId: string | undefined): void => {
@@ -2331,7 +2587,7 @@ function LiveRoutedReport(props: { readonly requestedProjectId?: string }) {
   );
 
   return (
-    <LiveReportApp
+    <ProjectOverviewApp
       requestedProjectId={props.requestedProjectId}
       navigateToProject={navigateToProject}
     />
@@ -2339,19 +2595,19 @@ function LiveRoutedReport(props: { readonly requestedProjectId?: string }) {
 }
 
 const rootRoute = createRootRoute({
-  component: LiveRouteRoot,
+  component: ClientRouteRoot,
 });
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: LiveIndexRoute,
+  component: ProjectIndexRoute,
 });
 
 const projectRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/projects/$projectId",
-  component: LiveProjectRoute,
+  component: ProjectRoute,
 });
 
 const routeTree = rootRoute.addChildren([indexRoute, projectRoute]);
