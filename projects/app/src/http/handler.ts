@@ -8,7 +8,7 @@ import {
   validateReplicachePullRequest,
   validateReplicachePushRequest,
 } from "../sync/index.js";
-import { handleLiveUiGetRequest, isLiveUiPath } from "../live-ui/server.js";
+import { handleClientGetRequest, isClientPath } from "./client-assets.js";
 
 export type SituHttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -27,7 +27,7 @@ const healthPath = "/health";
 const pullPath = "/replicache/pull";
 const pushPath = "/replicache/push";
 const healthMethods = ["GET"] satisfies readonly SituHttpMethod[];
-const liveUiMethods = ["GET"] satisfies readonly SituHttpMethod[];
+const clientMethods = ["GET"] satisfies readonly SituHttpMethod[];
 const pullMethods = ["POST"] satisfies readonly SituHttpMethod[];
 const pushMethods = ["POST"] satisfies readonly SituHttpMethod[];
 
@@ -39,8 +39,8 @@ export async function handleSituHttpRequest(input: HandleSituHttpRequestInput): 
       return handleHealthRequest({ request: input.request });
     }
 
-    if (isLiveUiPath(url.pathname)) {
-      return await handleLiveUiRequest({
+    if (isClientPath(url.pathname)) {
+      return await handleClientRequest({
         request: input.request,
         pathname: url.pathname,
       });
@@ -65,7 +65,7 @@ export async function handleSituHttpRequest(input: HandleSituHttpRequestInput): 
   }
 }
 
-async function handleLiveUiRequest(input: {
+async function handleClientRequest(input: {
   readonly request: Request;
   readonly pathname: string;
 }): Promise<Response> {
@@ -76,15 +76,15 @@ async function handleLiveUiRequest(input: {
         details: {
           method: input.request.method,
           path: input.pathname,
-          allowedMethods: liveUiMethods,
+          allowedMethods: clientMethods,
         },
       }),
-      headers: { Allow: liveUiMethods.join(", ") },
+      headers: { Allow: clientMethods.join(", ") },
       status: 405,
     });
   }
 
-  return await handleLiveUiGetRequest({
+  return await handleClientGetRequest({
     pathname: input.pathname,
   });
 }

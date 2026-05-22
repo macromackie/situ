@@ -257,11 +257,15 @@ export type ReplicachePatchOperation =
       readonly op: "put";
       readonly key: string;
       readonly value: JsonValue;
+    }
+  | {
+      readonly op: "del";
+      readonly key: string;
     };
 
 export type ReplicachePullResponse = {
-  // Fingerprint of the full reset state. Replicache ignores a pull whose cookie
-  // equals the client's, so this must advance whenever any record changes.
+  // Numeric global sync version. Pulls return records and mutation
+  // acknowledgements that changed after the client's previous cookie.
   readonly cookie: JsonValue;
   readonly lastMutationIDChanges: Record<string, number>;
   readonly patch: readonly ReplicachePatchOperation[];

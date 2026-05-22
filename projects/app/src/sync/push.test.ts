@@ -6,6 +6,7 @@ import { ErrorKind, ValidationError } from "@situ/errors";
 import { createAppActionContext } from "../actions/index.js";
 import { memoryDatabasePath, openAppDatabase } from "../db/index.js";
 import { getLastMutationId } from "./client-mutations.js";
+import { processReplicachePull } from "./pull.js";
 import { processReplicachePush } from "./push.js";
 import type { ReplicachePushRequest } from "./types.js";
 import { parseReplicachePushRequest } from "./validation.js";
@@ -850,6 +851,66 @@ test("marks malformed event args as permanent validation errors", () => {
         clientID: "client-1",
       }),
     ).toBe(2);
+  } finally {
+    database.close();
+  }
+});
+
+test("makes permanent mutation acknowledgements visible to incremental pulls", () => {
+  const database = openAppDatabase({ databasePath: memoryDatabasePath });
+
+  try {
+    const initialPull = processReplicachePull({
+      database,
+      pullRequest: {
+        pullVersion: 1,
+        clientGroupID: "client-group-1",
+        cookie: null,
+        profileID: "profile-1",
+        schemaVersion: "schema-1",
+      },
+    });
+    const pushResult = processReplicachePush({
+      database,
+      pushRequest: push({
+        mutations: [
+          {
+            clientID: "client-1",
+            id: 1,
+            name: "events.create",
+            args: {
+              id: "event_sync_permanent_ack",
+              target: {
+                targetKind: "task",
+                targetId: "task_sync_permanent_ack",
+              },
+              actor: {
+                actorKind: "local_agent",
+                actorId: "worker-1",
+              },
+              summaryMarkdown: "   ",
+            },
+            timestamp: 1,
+          },
+        ],
+      }),
+    });
+    const incrementalPull = processReplicachePull({
+      database,
+      pullRequest: {
+        pullVersion: 1,
+        clientGroupID: "client-group-1",
+        cookie: initialPull.cookie,
+        profileID: "profile-1",
+        schemaVersion: "schema-1",
+      },
+    });
+
+    expect(pushResult.permanentErrorCount).toBe(1);
+    expect(incrementalPull.lastMutationIDChanges).toEqual({
+      "client-1": 1,
+    });
+    expect(incrementalPull.patch).toEqual([]);
   } finally {
     database.close();
   }

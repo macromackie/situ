@@ -6,10 +6,10 @@ import { defineConfig } from "vite";
 const here = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  root: resolve(here, "src/live-ui"),
+  root: resolve(here, "src/client"),
   base: "/",
   build: {
-    outDir: resolve(here, "dist/live-ui"),
+    outDir: resolve(here, "dist/client"),
     emptyOutDir: true,
     sourcemap: false,
   },

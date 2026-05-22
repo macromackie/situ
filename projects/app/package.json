@@ -9,7 +9,7 @@
   },
   "scripts": {
     "check": "mise run check",
-    "live-ui:build": "vite build --config vite.live-ui.config.ts",
+    "client:build": "vite build --config vite.client.config.ts",
     "storybook": "storybook dev -p 6007",
     "storybook:build": "storybook build -o storybook-static",
     "typecheck": "tsgo --noEmit -p tsconfig.json",

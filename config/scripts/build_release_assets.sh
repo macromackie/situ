@@ -77,13 +77,13 @@ bun build \
 chmod 755 "$binary_path"
 cp README.md "$work_dir/README.md"
 
-# Pre-build the live UI browser app. The compiled CLI cannot invoke Vite from
+# Pre-build the browser client app. The compiled CLI cannot invoke Vite from
 # its embedded source filesystem, so `situ serve` ships this directory and
-# serves it from disk. Keep the install path in sync with live-ui/server.ts.
+# serves it from disk. Keep the install path in sync with src/http/client-assets.ts.
 mkdir -p "$work_dir/assets"
-(cd "$repo_root/projects/app" && bun run live-ui:build)
-rm -rf "$work_dir/assets/live-ui"
-cp -R "$repo_root/projects/app/dist/live-ui" "$work_dir/assets/live-ui"
+(cd "$repo_root/projects/app" && bun run client:build)
+rm -rf "$work_dir/assets/client"
+cp -R "$repo_root/projects/app/dist/client" "$work_dir/assets/client"
 
 cat > "$work_dir/MANIFEST" <<EOF
 situ-version: $SITU_VERSION

@@ -70,9 +70,9 @@ import {
   type LiveRecords,
 } from "./model.js";
 
-const liveSchemaVersion = "live-report-v1";
+const clientSchemaVersion = "situ-v2";
 const pullIntervalMs = 1500;
-const replicacheName = "situ-live-report";
+const replicacheName = "situ-v2";
 
 const ReplicacheContext = createContext<Replicache | null>(null);
 const SyncContext = createContext(false);
@@ -91,7 +91,7 @@ function ReplicacheProvider(props: { readonly children: ReactNode }) {
     try {
       const nextRep = new Replicache({
         name: replicacheName,
-        schemaVersion: liveSchemaVersion,
+        schemaVersion: clientSchemaVersion,
         pullURL: "/replicache/pull",
         pushURL: "/replicache/push",
         pullInterval: pullIntervalMs,

@@ -457,7 +457,7 @@ test("builds a full reset patch for projects, tasks, baselines, experiments, evi
     });
 
     expect(result).toEqual({
-      cookie: expect.any(String),
+      cookie: expect.any(Number),
       lastMutationIDChanges: {
         "client-1": 3,
         "client-2": 8,
@@ -969,7 +969,7 @@ test("returns clear-only patch and empty mutation changes for an empty product d
     });
 
     expect(result).toEqual({
-      cookie: expect.any(String),
+      cookie: expect.any(Number),
       lastMutationIDChanges: {},
       patch: [{ op: "clear" }],
     });
@@ -1066,7 +1066,7 @@ test("pull cookie advances when records change and stays stable otherwise", () =
 
   try {
     const emptyCookie = processReplicachePull({ database, pullRequest: pull() }).cookie;
-    expect(typeof emptyCookie).toBe("string");
+    expect(typeof emptyCookie).toBe("number");
 
     createAppActionContext({ database }).repositories.projects.create({
       id: "project_cookie" as SituId<"project">,
@@ -1085,6 +1085,168 @@ test("pull cookie advances when records change and stays stable otherwise", () =
 
     const repeat = processReplicachePull({ database, pullRequest: pull() }).cookie;
     expect(repeat).toBe(afterCreate);
+  } finally {
+    database.close();
+  }
+});
+
+test("returns incremental puts after a numeric cookie", () => {
+  const database = openAppDatabase({ databasePath: memoryDatabasePath });
+
+  try {
+    const initial = processReplicachePull({
+      database,
+      pullRequest: pull(),
+    });
+
+    expect(initial.cookie).toBe(0);
+    expect(initial.patch).toEqual([{ op: "clear" }]);
+
+    createAppActionContext({ database }).repositories.projects.create({
+      id: "project_incremental_put" as SituId<"project">,
+      name: "Incremental Put",
+      repositoryPath: "/tmp/incremental-put",
+      goalMarkdown: "Return only changed records.",
+      createdBy: {
+        actorKind: "human",
+        actorId: "scott",
+      },
+      now: "2026-05-21T01:00:00.000Z",
+    });
+
+    const afterCreate = processReplicachePull({
+      database,
+      pullRequest: pull({ cookie: initial.cookie }),
+    });
+
+    expect(afterCreate.cookie).toBe(1);
+    expect(afterCreate.lastMutationIDChanges).toEqual({});
+    expect(afterCreate.patch).toEqual([
+      {
+        op: "put",
+        key: "projects/project_incremental_put",
+        value: {
+          id: "project_incremental_put",
+          name: "Incremental Put",
+          repositoryPath: "/tmp/incremental-put",
+          goalMarkdown: "Return only changed records.",
+          status: "active",
+          createdBy: {
+            actorKind: "human",
+            actorId: "scott",
+          },
+          metadata: {
+            createdAt: "2026-05-21T01:00:00.000Z",
+            updatedAt: "2026-05-21T01:00:00.000Z",
+          },
+        },
+      },
+    ]);
+
+    const repeat = processReplicachePull({
+      database,
+      pullRequest: pull({ cookie: afterCreate.cookie }),
+    });
+
+    expect(repeat).toEqual({
+      cookie: afterCreate.cookie,
+      lastMutationIDChanges: {},
+      patch: [],
+    });
+  } finally {
+    database.close();
+  }
+});
+
+test("returns incremental deletes after a numeric cookie", () => {
+  const database = openAppDatabase({ databasePath: memoryDatabasePath });
+
+  try {
+    createAppActionContext({ database }).repositories.projects.create({
+      id: "project_incremental_delete" as SituId<"project">,
+      name: "Incremental Delete",
+      repositoryPath: "/tmp/incremental-delete",
+      goalMarkdown: "Return delete patches.",
+      createdBy: {
+        actorKind: "human",
+        actorId: "scott",
+      },
+      now: "2026-05-21T02:00:00.000Z",
+    });
+    const initial = processReplicachePull({
+      database,
+      pullRequest: pull(),
+    });
+
+    database.query("DELETE FROM projects WHERE id = ?").run("project_incremental_delete");
+
+    const afterDelete = processReplicachePull({
+      database,
+      pullRequest: pull({ cookie: initial.cookie }),
+    });
+
+    expect(afterDelete.cookie).toBe(2);
+    expect(afterDelete.lastMutationIDChanges).toEqual({});
+    expect(afterDelete.patch).toEqual([
+      {
+        op: "del",
+        key: "projects/project_incremental_delete",
+      },
+    ]);
+  } finally {
+    database.close();
+  }
+});
+
+test("returns incremental client mutation id changes after a numeric cookie", () => {
+  const database = openAppDatabase({ databasePath: memoryDatabasePath });
+
+  try {
+    const initial = processReplicachePull({
+      database,
+      pullRequest: pull({ clientGroupID: "client-group-mutations" }),
+    });
+
+    setLastMutationId({
+      database,
+      clientGroupID: "client-group-mutations",
+      clientID: "client-1",
+      lastMutationID: 5,
+    });
+    setLastMutationId({
+      database,
+      clientGroupID: "other-client-group",
+      clientID: "client-ignored",
+      lastMutationID: 9,
+    });
+
+    const afterAck = processReplicachePull({
+      database,
+      pullRequest: pull({
+        clientGroupID: "client-group-mutations",
+        cookie: initial.cookie,
+      }),
+    });
+
+    expect(afterAck.cookie).toBe(2);
+    expect(afterAck.lastMutationIDChanges).toEqual({
+      "client-1": 5,
+    });
+    expect(afterAck.patch).toEqual([]);
+
+    const repeat = processReplicachePull({
+      database,
+      pullRequest: pull({
+        clientGroupID: "client-group-mutations",
+        cookie: afterAck.cookie,
+      }),
+    });
+
+    expect(repeat).toEqual({
+      cookie: afterAck.cookie,
+      lastMutationIDChanges: {},
+      patch: [],
+    });
   } finally {
     database.close();
   }

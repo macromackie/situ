@@ -8,6 +8,7 @@ import { createMeasurementsTableStatement, measurementsSchemaFragment } from "@s
 
 import { appSchemaFragments, schemaStatementsFromFragments } from "./schema.js";
 import { withTransaction } from "./transactions.js";
+import { applyReplicacheGlobalVersionSyncMigration } from "./replicache-sync.js";
 
 /**
  * App-level SQLite migration definition.
@@ -34,6 +35,7 @@ CREATE TABLE IF NOT EXISTS replicache_client_mutations (
   client_group_id TEXT NOT NULL,
   client_id TEXT NOT NULL,
   last_mutation_id INTEGER NOT NULL CHECK (last_mutation_id >= 0),
+  last_modified_version INTEGER NOT NULL DEFAULT 0 CHECK (last_modified_version >= 0),
   updated_at TEXT NOT NULL,
   PRIMARY KEY (client_group_id, client_id)
 );
@@ -61,6 +63,10 @@ export const appSchemaMigrations = [
   {
     id: "0005-live-presentation-records",
     statements: liveSchemaFragment.statements,
+  },
+  {
+    id: "0006-replicache-global-version-sync",
+    apply: applyReplicacheGlobalVersionSyncMigration,
   },
 ] as const satisfies readonly SchemaMigration[];
 

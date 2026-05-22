@@ -60,11 +60,11 @@ async function withTempDatabasePath(
   }
 }
 
-function firstLiveUiAssetPath(html: string): string {
+function firstClientAssetPath(html: string): string {
   const match = /(?:src|href)="(\/assets\/[^"]+)"/.exec(html);
 
   if (match?.[1] === undefined) {
-    throw new Error("Expected live UI shell to reference a Vite asset.");
+    throw new Error("Expected client shell to reference a Vite asset.");
   }
 
   return match[1];
@@ -88,7 +88,7 @@ test("returns health without opening or validating the database", async () => {
   expect(text).toBe('{"ok":true}\n');
 });
 
-test("serves the live report shell without opening the database", async () => {
+test("serves the client shell without opening the database", async () => {
   const directory = mkdtempSync(join(tmpdir(), "situ-http-live-shell-"));
   const databasePath = join(directory, "nested", "situ.db");
 
@@ -108,11 +108,11 @@ test("serves the live report shell without opening the database", async () => {
 
     expect(root.response.status).toBe(200);
     expect(root.text).toContain('<div id="root">');
-    expect(firstLiveUiAssetPath(root.text).startsWith("/assets/")).toBe(true);
+    expect(firstClientAssetPath(root.text).startsWith("/assets/")).toBe(true);
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
     expect(text).toContain('<div id="root">');
-    expect(firstLiveUiAssetPath(text).startsWith("/assets/")).toBe(true);
+    expect(firstClientAssetPath(text).startsWith("/assets/")).toBe(true);
     expect(existsSync(dirname(databasePath))).toBe(false);
     expect(existsSync(databasePath)).toBe(false);
   } finally {
@@ -120,27 +120,27 @@ test("serves the live report shell without opening the database", async () => {
   }
 });
 
-test("serves the live report Vite assets referenced by the shell", async () => {
+test("serves the client Vite assets referenced by the shell", async () => {
   const shell = await responseText({
     method: "GET",
     path: "/",
   });
   const { response, text } = await responseText({
     method: "GET",
-    path: firstLiveUiAssetPath(shell.text),
+    path: firstClientAssetPath(shell.text),
   });
 
   expect(response.status).toBe(200);
   expect(response.headers.get("content-type")).toBe("application/javascript; charset=utf-8");
-  expect(text).toContain("situ-live-report");
+  expect(text).toContain("situ-v2");
 });
 
-test("returns 405 and Allow for unsupported live UI asset methods", async () => {
+test("returns 405 and Allow for unsupported client asset methods", async () => {
   const shell = await responseText({
     method: "GET",
     path: "/",
   });
-  const assetPath = firstLiveUiAssetPath(shell.text);
+  const assetPath = firstClientAssetPath(shell.text);
   const { response, text } = await responseText({
     method: "POST",
     path: assetPath,
@@ -162,7 +162,7 @@ test("returns 405 and Allow for unsupported live UI asset methods", async () => 
   expect(text.endsWith("\n")).toBe(true);
 });
 
-test("returns 405 and Allow for unsupported live UI methods", async () => {
+test("returns 405 and Allow for unsupported client methods", async () => {
   const { response, text } = await responseText({
     method: "POST",
     path: "/projects/project_123",
@@ -452,7 +452,7 @@ test("processes Replicache pull requests", async () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("application/json; charset=utf-8");
     expect(JSON.parse(text)).toEqual({
-      cookie: expect.any(String),
+      cookie: expect.any(Number),
       lastMutationIDChanges: {
         "client-1": 2,
       },

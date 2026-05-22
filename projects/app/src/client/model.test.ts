@@ -394,8 +394,8 @@ function projectRecord(input: {
   return {
     id: input.id,
     name: input.name,
-    repositoryPath: "/tmp/live-ui",
-    goalMarkdown: "Exercise the live report UI.",
+    repositoryPath: "/tmp/client",
+    goalMarkdown: "Exercise the client UI.",
     status: "active",
     createdBy: human,
     metadata: metadata(input.createdAt),

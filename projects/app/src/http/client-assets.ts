@@ -5,13 +5,13 @@ import { fileURLToPath } from "node:url";
 
 import { InternalError, NotFoundError } from "@situ/errors";
 
-const liveUiAssetPathPrefix = "/assets/";
+const clientAssetPathPrefix = "/assets/";
 const projectRoutePattern = /^\/projects\/[^/]+\/?$/;
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = join(here, "..", "..");
-const sourceBuildDirectory = join(appRoot, "dist", "live-ui");
-const viteConfigPath = join(appRoot, "vite.live-ui.config.ts");
+const sourceBuildDirectory = join(appRoot, "dist", "client");
+const viteConfigPath = join(appRoot, "vite.client.config.ts");
 // A `bun build --compile` standalone binary keeps its source in an embedded
 // virtual filesystem (paths under `$bunfs`). Such a binary serves the Vite
 // output built at release time instead of invoking Vite at request time.
@@ -19,42 +19,42 @@ const runningAsStandaloneBinary = here.includes("$bunfs");
 
 let buildDirectoryPromise: Promise<string> | undefined;
 
-export function isLiveUiPath(pathname: string): boolean {
-  return isLiveUiShellPath(pathname) || isLiveUiAssetPath(pathname);
+export function isClientPath(pathname: string): boolean {
+  return isClientShellPath(pathname) || isClientAssetPath(pathname);
 }
 
-export async function handleLiveUiGetRequest(input: {
+export async function handleClientGetRequest(input: {
   readonly pathname: string;
 }): Promise<Response> {
-  if (isLiveUiShellPath(input.pathname)) {
-    return htmlResponse(await readLiveUiShell());
+  if (isClientShellPath(input.pathname)) {
+    return htmlResponse(await readClientShell());
   }
 
-  if (isLiveUiAssetPath(input.pathname)) {
-    return await liveUiAssetResponse({ pathname: input.pathname });
+  if (isClientAssetPath(input.pathname)) {
+    return await clientAssetResponse({ pathname: input.pathname });
   }
 
   throw new InternalError({
-    message: "Live UI route was not handled.",
+    message: "Client route was not handled.",
     details: { path: input.pathname },
   });
 }
 
-function isLiveUiShellPath(pathname: string): boolean {
+function isClientShellPath(pathname: string): boolean {
   return pathname === "/" || projectRoutePattern.test(pathname);
 }
 
-function isLiveUiAssetPath(pathname: string): boolean {
-  return pathname.startsWith(liveUiAssetPathPrefix);
+function isClientAssetPath(pathname: string): boolean {
+  return pathname.startsWith(clientAssetPathPrefix);
 }
 
-async function readLiveUiShell(): Promise<string> {
-  const buildDirectory = await getLiveUiBuildDirectory();
+async function readClientShell(): Promise<string> {
+  const buildDirectory = await getClientBuildDirectory();
   return await readFile(join(buildDirectory, "index.html"), "utf8");
 }
 
-async function liveUiAssetResponse(input: { readonly pathname: string }): Promise<Response> {
-  const buildDirectory = await getLiveUiBuildDirectory();
+async function clientAssetResponse(input: { readonly pathname: string }): Promise<Response> {
+  const buildDirectory = await getClientBuildDirectory();
   const assetsDirectory = resolve(buildDirectory, "assets");
   const assetPath = resolve(buildDirectory, `.${input.pathname}`);
 
@@ -87,14 +87,14 @@ function isPathInsideDirectory(input: {
   return input.path === input.directory || input.path.startsWith(`${input.directory}${sep}`);
 }
 
-async function getLiveUiBuildDirectory(): Promise<string> {
-  buildDirectoryPromise ??= resolveLiveUiBuildDirectory();
+async function getClientBuildDirectory(): Promise<string> {
+  buildDirectoryPromise ??= resolveClientBuildDirectory();
   return await buildDirectoryPromise;
 }
 
-async function resolveLiveUiBuildDirectory(): Promise<string> {
+async function resolveClientBuildDirectory(): Promise<string> {
   const buildDirectory = runningAsStandaloneBinary
-    ? join(dirname(realpathSync(process.execPath)), "..", "assets", "live-ui")
+    ? join(dirname(realpathSync(process.execPath)), "..", "assets", "client")
     : sourceBuildDirectory;
 
   if (existsSync(join(buildDirectory, "index.html"))) {
@@ -103,16 +103,16 @@ async function resolveLiveUiBuildDirectory(): Promise<string> {
 
   if (runningAsStandaloneBinary) {
     throw new InternalError({
-      message: "Live UI build is missing from the install.",
+      message: "Client build is missing from the install.",
       details: { buildDirectory },
     });
   }
 
-  await buildSourceLiveUi();
+  await buildSourceClient();
   return buildDirectory;
 }
 
-async function buildSourceLiveUi(): Promise<void> {
+async function buildSourceClient(): Promise<void> {
   const vite = await import("vite");
   await vite.build({
     configFile: viteConfigPath,

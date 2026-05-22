@@ -7,7 +7,7 @@
     "projects/app/packages/reports-ui/stories/**/*.stories.tsx",
     "projects/app/.storybook/main.ts",
     "projects/app/src/**/*.stories.tsx",
-    "projects/app/src/live-ui/main.tsx",
+    "projects/app/src/client/main.tsx",
     "projects/evals/evalite.config.ts",
     "projects/evals/src/**/*.eval.ts",
     "projects/evals/src/harness/situ-cli.ts",
