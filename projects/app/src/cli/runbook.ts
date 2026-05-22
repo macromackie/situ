@@ -40,6 +40,11 @@ THE LOOP
      - Re-run the current best now and then: a win that does not survive
        re-validation was noise. The surviving best is your frontier — keep it
        visible.
+     - Publish each baseline and experiment to the live run map as you go:
+       \`situ live nodes set\` for the node, \`situ live details set\` to attach
+       its metric (this is what the dashboard charts), and \`situ live edges set\`
+       / \`situ live focus set\` for lineage and current focus. The run map is
+       curated, not derived — skip this and the dashboard's run map stays empty.
 
 4. SEARCH WIDE BEFORE DEEP
    - One knob at a time misses interactions: a change that fails alone can win
@@ -85,6 +90,7 @@ COMMANDS   (run \`situ help <group>\` for exact subcommands and flags)
   situ measurements   numbers attached to baselines and experiments
   situ reviews        accept / reject decisions, with reasoning
   situ briefings      the live narrative humans watch (drives the live page)
+  situ live           run-map nodes, edges, details, and focus (drives the chart)
   situ status         what is pending, running, and done
   situ verify         completion and integrity evidence before you call it done
   situ serve          open the live briefing in a browser

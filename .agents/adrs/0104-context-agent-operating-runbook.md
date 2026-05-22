@@ -61,8 +61,10 @@ The content is a runbook, not a tutorial and not a reference:
   change; hypothesize and measure in worktrees; keep only changes that clear the
   noise floor and re-validate the running-best frontier; search wide before deep
   (revisit rejected ideas, test interactions, pivot off an exhausted axis);
-  delegate independent candidates; stay honest with a two-sided held-out check;
-  mind a self-managed budget; finish with a briefing
+  publish each baseline and experiment to the live run map (`situ live`, which is
+  curated rather than derived) so the dashboard renders it; delegate independent
+  candidates; stay honest with a two-sided held-out check; mind a self-managed
+  budget; finish with a briefing
 - it points to `situ help <group>` for exact flags instead of duplicating them
 - it ends with one concrete worked example
 
