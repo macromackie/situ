@@ -68,6 +68,10 @@ THE LOOP
      the code. Optimize the dev metric; check held-out now and then as a two-sided
      signal: dev up while held-out flat or down means you are overfitting; dev
      down while held-out up means you may have dropped a real win — revisit it.
+     If a branch reaches a suspicious dev frontier by training on, memorizing,
+     or looking up dev labels, do not accept it as the clean generalizing result.
+     Mark it as overfit-risky, use watch/rejected/change-requested language, and
+     report the best non-leaky branch separately.
    - Do not change the metric's definition mid-run. If you must touch the eval,
      re-baseline and say so.
    - If a result surprises you or you cannot explain it (a collapse, a too-good

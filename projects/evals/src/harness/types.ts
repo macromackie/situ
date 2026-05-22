@@ -42,6 +42,7 @@ export type WorkspaceAutoresearchCase = {
   readonly targetCandidateCount: number;
   readonly managerTimeoutMs?: number;
   readonly requiresSynthesis: boolean;
+  readonly allowAcceptedOverfitRisk?: boolean;
   readonly protectedPaths: readonly string[];
   readonly editablePaths: readonly string[];
   readonly harnessCommand: string;

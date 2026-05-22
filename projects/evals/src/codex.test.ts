@@ -31,6 +31,7 @@ test("workspace manager command launches one native-goal terminal manager", () =
       "Autoresearch loop",
       "Baseline requirements",
       "Delegation guidance",
+      "Overfit discipline",
       "Checkpoint reporting",
       "Final authored research report (REQUIRED before completion)",
       "Workspace constraints",
@@ -47,6 +48,8 @@ test("workspace manager command launches one native-goal terminal manager", () =
   expect(command.prompt).toContain("situ reports preview");
   expect(command.prompt).toContain("situ reports submit");
   expect(command.prompt).toContain("situ reports generate");
+  expect(command.prompt).toContain("mark it as overfit-risky rather than a clean accepted result");
+  expect(command.prompt).toContain("best non-leaky generalizing branch");
 });
 
 function sectionHeadings(markdown: string): readonly string[] {

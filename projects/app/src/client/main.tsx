@@ -920,7 +920,7 @@ function RunMapTooltip(props: { active?: boolean; payload?: readonly TooltipEntr
     <div className="map-tooltip">
       <span className="map-tooltip-title">{row.title}</span>
       <span className="map-tooltip-state">
-        {row.frontierY !== null ? "Kept improvement" : "Discarded"}
+        {row.frontierY !== null ? "Frontier point" : "Other attempt"}
       </span>
       <span className="map-tooltip-metric">{formatAxisValue(row.y)}</span>
     </div>
@@ -986,8 +986,9 @@ function RunMapChart(props: {
     props.details,
   );
   const n = props.nodes.length;
-  const keptLabel = frontierKeys.size === 1 ? "Kept Improvement" : "Kept Improvements";
-  const title = `Autoresearch Progress: ${n} Experiment${n !== 1 ? "s" : ""}, ${frontierKeys.size} ${keptLabel}`;
+  const attemptLabel = n === 1 ? "Attempt" : "Attempts";
+  const frontierLabel = frontierKeys.size === 1 ? "Frontier Point" : "Frontier Points";
+  const title = `Live Progress: ${n} ${attemptLabel}, ${frontierKeys.size} ${frontierLabel}`;
 
   return (
     <div className="run-map-chart-wrap">
@@ -998,13 +999,13 @@ function RunMapChart(props: {
             <svg width={10} height={10}>
               <circle cx={5} cy={5} r={3.5} fill="var(--muted)" opacity={0.3} />
             </svg>
-            Discarded
+            Other attempts
           </span>
           <span className="map-legend-item">
             <svg width={10} height={10}>
               <circle cx={5} cy={5} r={5} fill="var(--accent)" opacity={0.9} />
             </svg>
-            Kept
+            Frontier
           </span>
           <span className="map-legend-item">
             <svg width={20} height={10}>

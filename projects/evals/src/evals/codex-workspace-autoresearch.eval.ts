@@ -9,12 +9,14 @@ import {
 import type { WorkspaceAutoresearchCase, WorkspaceAutoresearchOutput } from "../harness/types.js";
 import { scoreWithCodexJudge } from "../judges/codex-judge.js";
 import { collectLiveMapEvidence } from "./live-map-evidence.js";
+import { collectOverfitEvidence } from "./overfit-evidence.js";
 
 type ParsedExperiment = {
   readonly id?: string;
   readonly taskId?: string;
   readonly title?: string;
   readonly status?: string;
+  readonly summaryMarkdown?: string;
   readonly baseRef?: string;
   readonly branchName?: string;
   readonly worktreePath?: string;
@@ -33,6 +35,8 @@ type ParsedMeasurement = {
   readonly baselineId?: string;
   readonly experimentId?: string;
   readonly metricName?: string;
+  readonly numericValue?: number;
+  readonly summaryMarkdown?: string;
   readonly measuredBy?: unknown;
   readonly metadata?: {
     readonly createdAt?: string;
@@ -166,6 +170,11 @@ evalite<WorkspaceAutoresearchCase, WorkspaceAutoresearchOutput, string>(
             liveRecordsJson: output.liveRecords.stdout,
             measuredExperimentIds: comparableMeasuredExperimentIds,
           });
+          const overfitEvidence = collectOverfitEvidence({
+            experiments,
+            measurements,
+            allowAcceptedOverfitRisk: input.allowAcceptedOverfitRisk,
+          });
           const resultsRows = countRunResultRows(output);
           const projectReportCount = reports.filter(
             (report) =>
@@ -246,6 +255,7 @@ evalite<WorkspaceAutoresearchCase, WorkspaceAutoresearchOutput, string>(
               hasBaselineRecords &&
               hasCandidateRecords &&
               hasLiveMapCoverage &&
+              overfitEvidence.ok &&
               hasProjectReport &&
               authoredReportPresent &&
               visualReportLooksAuthored &&
@@ -275,6 +285,7 @@ evalite<WorkspaceAutoresearchCase, WorkspaceAutoresearchOutput, string>(
               comparableMeasuredExperimentIds,
               hasLiveMapCoverage,
               liveMapEvidence,
+              overfitEvidence,
               projectReportCount,
               authoredReportPresent,
               authoredReportCount: authoredReports.length,
