@@ -23,6 +23,7 @@ export const liveMapEdgeRelations = [
   "verifies",
 ] as const;
 export const liveFocusModes = ["overview", "node", "comparison", "blocked"] as const;
+export const liveMetricDirections = ["higher_is_better", "lower_is_better"] as const;
 
 export type LiveTone = (typeof liveTones)[number];
 export type LiveEdgeTone = (typeof liveEdgeTones)[number];
@@ -30,6 +31,7 @@ export type LiveVisibility = (typeof liveVisibilities)[number];
 export type LiveMapNodeKind = (typeof liveMapNodeKinds)[number];
 export type LiveMapEdgeRelation = (typeof liveMapEdgeRelations)[number];
 export type LiveFocusMode = (typeof liveFocusModes)[number];
+export type LiveMetricDirection = (typeof liveMetricDirections)[number];
 
 export type LiveSignalRecord = {
   readonly id: SituId<"live_signal">;
@@ -88,6 +90,10 @@ export type LiveNodeFact = {
   readonly label: string;
   readonly value: string;
   readonly tone?: LiveTone;
+  readonly metricName?: string;
+  readonly numericValue?: number;
+  readonly unit?: string;
+  readonly direction?: LiveMetricDirection;
 };
 
 export type LiveNodeDetailRecord = {

@@ -90,12 +90,57 @@ Flags:
     `Usage: situ live <subcommand>
 
 Subcommands:
+  attempts  Publish a live run-map attempt with metric detail.
   signals   Create live signal records.
   nodes     Create live run-map node records.
   edges     Create live run-map edge records.
   focus     Create live focus records.
   details   Create live node detail records.
   list      List live presentation records for a project.
+`,
+  ],
+  [
+    "live attempts",
+    `Usage: situ live attempts publish [flags]
+`,
+  ],
+  [
+    "live attempts publish",
+    `Usage: situ live attempts publish [flags]
+
+Required flags:
+  --project-id <project-id>
+  --node-key <key>
+  --kind <baseline|branch|verification|finding|blocker|decision|result>
+  --title <title>
+  --summary <summary>
+  --tone <neutral|good|watch|blocked|done>
+  --body <markdown>
+  --metric-label <label>
+  --metric-value <number>
+  --authored-by-kind <human|local_agent|system>
+  --authored-by-id <id>
+
+Optional flags:
+  --metric-name <name>
+  --metric-unit <unit>
+  --metric-direction <higher_is_better|lower_is_better>
+  --occurred-at <iso-timestamp>
+  --refs-json <json-array>
+  --experiment-id <experiment-id>
+  --baseline-id <baseline-id>
+  --measurement-id <measurement-id>
+  --from-node-key <key>
+  --edge-key <key>
+  --edge-relation <led_to|depends_on|blocked_by|supersedes|verifies>
+  --edge-tone <neutral|good|watch|blocked>
+  --edge-visibility <visible|hidden>
+  --focus-mode <overview|node|comparison|blocked>
+  --focus-summary <summary>
+  --related-node-keys-json <json-array>
+  --visibility <visible|hidden>
+  --authored-by-display-name <name>
+  --now <iso-timestamp>
 `,
   ],
   [

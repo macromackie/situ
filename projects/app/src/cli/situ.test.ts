@@ -6197,6 +6197,134 @@ test("creates and lists live presentation records", async () => {
   });
 });
 
+test("publishes a live attempt node, metric detail, edge, and focus", async () => {
+  await withTempDatabasePath(async (databasePath) => {
+    const projectId = await createCliProjectFixture({
+      databasePath,
+      prefix: "cli_live_publish",
+    });
+
+    const result = await runSituCli({
+      args: [
+        "--json",
+        "--db",
+        databasePath,
+        "live",
+        "attempts",
+        "publish",
+        "--project-id",
+        projectId,
+        "--authored-by-kind",
+        "local_agent",
+        "--authored-by-id",
+        "manager",
+        "--node-key",
+        "candidate-1",
+        "--kind",
+        "branch",
+        "--title",
+        "Candidate one",
+        "--summary",
+        "Measured above baseline.",
+        "--tone",
+        "good",
+        "--body",
+        "Candidate one improved the development metric.",
+        "--metric-label",
+        "dev_accuracy",
+        "--metric-name",
+        "dev_accuracy",
+        "--metric-value",
+        "0.811",
+        "--metric-unit",
+        "accuracy",
+        "--metric-direction",
+        "higher_is_better",
+        "--experiment-id",
+        "experiment_cli_live_candidate",
+        "--measurement-id",
+        "measurement_cli_live_candidate",
+        "--from-node-key",
+        "baseline",
+        "--edge-key",
+        "baseline_to_candidate",
+        "--edge-relation",
+        "led_to",
+        "--edge-tone",
+        "good",
+        "--focus-mode",
+        "node",
+        "--focus-summary",
+        "Inspect candidate one.",
+        "--related-node-keys-json",
+        '["baseline"]',
+        "--now",
+        "2026-05-22T12:00:00.000Z",
+      ],
+      environment,
+    });
+
+    expect(result.exitCode).toBe(0);
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      node: {
+        projectId,
+        nodeKey: "candidate-1",
+        kind: "branch",
+        title: "Candidate one",
+        tone: "good",
+      },
+      detail: {
+        projectId,
+        nodeKey: "candidate-1",
+        facts: [
+          {
+            label: "dev_accuracy",
+            value: "0.811",
+            metricName: "dev_accuracy",
+            numericValue: 0.811,
+            unit: "accuracy",
+            direction: "higher_is_better",
+          },
+        ],
+        refs: [
+          { targetKind: "experiment", targetId: "experiment_cli_live_candidate" },
+          { targetKind: "measurement", targetId: "measurement_cli_live_candidate" },
+        ],
+      },
+      edge: {
+        edgeKey: "baseline_to_candidate",
+        fromNodeKey: "baseline",
+        toNodeKey: "candidate-1",
+        relation: "led_to",
+        tone: "good",
+      },
+      focus: {
+        mode: "node",
+        primaryNodeKey: "candidate-1",
+        relatedNodeKeys: ["baseline"],
+      },
+    });
+
+    const listResult = await runSituCli({
+      args: ["--json", "--db", databasePath, "live", "list", "--project-id", projectId],
+      environment,
+    });
+
+    expect(JSON.parse(listResult.stdout)).toMatchObject({
+      mapNodes: [{ nodeKey: "candidate-1" }],
+      mapEdges: [{ edgeKey: "baseline_to_candidate" }],
+      focuses: [{ primaryNodeKey: "candidate-1" }],
+      nodeDetails: [
+        {
+          nodeKey: "candidate-1",
+          facts: [{ numericValue: 0.811, direction: "higher_is_better" }],
+        },
+      ],
+    });
+  });
+});
+
 test("validates live syntax before opening the database", async () => {
   const directory = mkdtempSync(join(tmpdir(), "situ-cli-"));
   const databasePath = join(directory, "nested", "situ.db");
@@ -6261,6 +6389,38 @@ test("validates live syntax before opening the database", async () => {
             "scott",
           ],
           "Error [validation]: Invalid JSON for --facts-json.\n",
+        ],
+        [
+          [
+            "--db",
+            databasePath,
+            "live",
+            "attempts",
+            "publish",
+            "--project-id",
+            "project_cli_live",
+            "--authored-by-kind",
+            "human",
+            "--authored-by-id",
+            "scott",
+            "--node-key",
+            "candidate",
+            "--kind",
+            "branch",
+            "--title",
+            "Candidate",
+            "--summary",
+            "Summary",
+            "--tone",
+            "good",
+            "--body",
+            "Body",
+            "--metric-label",
+            "dev_accuracy",
+            "--metric-value",
+            "not-a-number",
+          ],
+          "Error [validation]: Expected --metric-value to be a finite number.\n",
         ],
       ] as const,
       async ([args, stderr]) => {

@@ -8,6 +8,7 @@ import {
 } from "../harness/workspace-environment.js";
 import type { WorkspaceAutoresearchCase, WorkspaceAutoresearchOutput } from "../harness/types.js";
 import { scoreWithCodexJudge } from "../judges/codex-judge.js";
+import { collectLiveMapEvidence } from "./live-map-evidence.js";
 
 type ParsedExperiment = {
   readonly id?: string;
@@ -154,6 +155,17 @@ evalite<WorkspaceAutoresearchCase, WorkspaceAutoresearchOutput, string>(
                 baselineMetricNames.has(measurement.metricName),
             ),
           );
+          const comparableMeasuredExperimentIds = distinctMeasuredExperimentIds(
+            experimentMeasurements.filter(
+              (measurement) =>
+                measurement.metricName !== undefined &&
+                baselineMetricNames.has(measurement.metricName),
+            ),
+          );
+          const liveMapEvidence = collectLiveMapEvidence({
+            liveRecordsJson: output.liveRecords.stdout,
+            measuredExperimentIds: comparableMeasuredExperimentIds,
+          });
           const resultsRows = countRunResultRows(output);
           const projectReportCount = reports.filter(
             (report) =>
@@ -217,6 +229,10 @@ evalite<WorkspaceAutoresearchCase, WorkspaceAutoresearchOutput, string>(
             measuredExperimentCount >= requiredCount &&
             comparableMeasuredExperimentCount >= requiredCount &&
             comparableExperimentMeasurementCount >= requiredCount;
+          const hasLiveMapCoverage =
+            liveMapEvidence.liveNodeCount >= requiredCount &&
+            liveMapEvidence.livePlottableDetailCount >= requiredCount &&
+            liveMapEvidence.measuredExperimentRefCount >= requiredCount;
           const hasProjectReport = projectReportCount >= 1;
           const hasSynthesisEvidence = !input.requiresSynthesis || synthesisEvidence?.ok === true;
 
@@ -229,6 +245,7 @@ evalite<WorkspaceAutoresearchCase, WorkspaceAutoresearchOutput, string>(
               protectedDiffsClean &&
               hasBaselineRecords &&
               hasCandidateRecords &&
+              hasLiveMapCoverage &&
               hasProjectReport &&
               authoredReportPresent &&
               visualReportLooksAuthored &&
@@ -255,6 +272,9 @@ evalite<WorkspaceAutoresearchCase, WorkspaceAutoresearchOutput, string>(
               comparableExperimentMeasurementCount,
               measuredExperimentCount,
               comparableMeasuredExperimentCount,
+              comparableMeasuredExperimentIds,
+              hasLiveMapCoverage,
+              liveMapEvidence,
               projectReportCount,
               authoredReportPresent,
               authoredReportCount: authoredReports.length,
@@ -607,6 +627,22 @@ function countDistinctMeasuredExperiments(measurements: readonly ParsedMeasureme
       return [measurement.experimentId];
     }),
   ).size;
+}
+
+function distinctMeasuredExperimentIds(
+  measurements: readonly ParsedMeasurement[],
+): readonly string[] {
+  return Array.from(
+    new Set(
+      measurements.flatMap((measurement) => {
+        if (measurement.experimentId === undefined) {
+          return [];
+        }
+
+        return [measurement.experimentId];
+      }),
+    ),
+  );
 }
 
 function countExperimentWorktrees(input: {

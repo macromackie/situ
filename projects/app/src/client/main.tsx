@@ -688,13 +688,26 @@ type ChartRowData = {
   tone: LiveTone;
 };
 
-function extractFirstNumericFact(detail?: LiveNodeDetailRecord): number | null {
-  if (detail === undefined) return null;
+type ChartMetric = {
+  readonly value: number;
+  readonly direction: "higher_is_better" | "lower_is_better";
+};
+
+function extractFirstMetricFact(detail?: LiveNodeDetailRecord): ChartMetric | undefined {
+  if (detail === undefined) return undefined;
   for (const fact of detail.facts) {
-    const n = parseFloat(fact.value);
-    if (!isNaN(n) && isFinite(n)) return n;
+    const n =
+      typeof fact.numericValue === "number" && Number.isFinite(fact.numericValue)
+        ? fact.numericValue
+        : parseFloat(fact.value);
+    if (!isNaN(n) && isFinite(n)) {
+      return {
+        value: n,
+        direction: fact.direction ?? "higher_is_better",
+      };
+    }
   }
-  return null;
+  return undefined;
 }
 
 function formatAxisValue(v: number): string {
@@ -707,18 +720,32 @@ function formatAxisValue(v: number): string {
 function buildChartData(
   nodes: readonly CurrentMapNode[],
   details: ReadonlyMap<string, LiveNodeDetailRecord>,
-): { data: ChartRowData[]; frontierKeys: ReadonlySet<string>; hasMetrics: boolean } {
-  const rawValues = nodes.map((n) => extractFirstNumericFact(details.get(n.nodeKey)));
-  const hasMetrics = rawValues.filter((v): v is number => v !== null).length > 1;
+): {
+  data: ChartRowData[];
+  frontierKeys: ReadonlySet<string>;
+  hasMetrics: boolean;
+  metricCount: number;
+} {
+  const rawMetrics = nodes.map((n) => extractFirstMetricFact(details.get(n.nodeKey)));
+  const rawValues = rawMetrics.map((metric) => metric?.value ?? null);
+  const metricCount = rawMetrics.filter(
+    (metric): metric is ChartMetric => metric !== undefined,
+  ).length;
+  const hasMetrics = metricCount > 1;
+  const direction =
+    rawMetrics.find((metric): metric is ChartMetric => metric !== undefined)?.direction ??
+    "higher_is_better";
 
   const frontierKeys = new Set<string>();
   if (hasMetrics) {
-    let runningMax = -Infinity;
+    let runningBest = direction === "higher_is_better" ? -Infinity : Infinity;
     for (const node of nodes) {
-      const v = extractFirstNumericFact(details.get(node.nodeKey));
-      if (v !== null && v > runningMax) {
+      const v = extractFirstMetricFact(details.get(node.nodeKey))?.value ?? null;
+      const improved =
+        v !== null && (direction === "higher_is_better" ? v > runningBest : v < runningBest);
+      if (improved) {
         frontierKeys.add(node.nodeKey);
-        runningMax = v;
+        runningBest = v;
       }
     }
   } else {
@@ -740,7 +767,7 @@ function buildChartData(
     };
   });
 
-  return { data, frontierKeys, hasMetrics };
+  return { data, frontierKeys, hasMetrics, metricCount };
 }
 
 type RunMapDotProps = {
@@ -929,7 +956,10 @@ function RunMapChart(props: {
   readonly selectedKey?: string;
   readonly onSelect: (key: string) => void;
 }) {
-  const { data, frontierKeys, hasMetrics } = buildChartData(props.nodes, props.details);
+  const { data, frontierKeys, hasMetrics, metricCount } = buildChartData(
+    props.nodes,
+    props.details,
+  );
   const n = props.nodes.length;
   const title = `${n} experiment${n !== 1 ? "s" : ""} · ${frontierKeys.size} frontier`;
 
@@ -966,71 +996,78 @@ function RunMapChart(props: {
           </span>
         </span>
       </div>
-      <ResponsiveContainer width="100%" height={340}>
-        <ComposedChart data={data} margin={{ top: 72, right: 28, bottom: 30, left: 12 }}>
-          <CartesianGrid stroke="var(--rule-soft)" strokeDasharray="2 4" vertical={false} />
-          <XAxis
-            dataKey="index"
-            type="number"
-            domain={[-0.4, n - 0.6]}
-            label={{
-              value: "Experiment #",
-              position: "insideBottom",
-              offset: -16,
-              style: {
-                fontSize: 10,
-                fill: "var(--muted)",
-                fontFamily: "var(--sans)",
-                letterSpacing: "0.04em",
-              },
-            }}
-            tick={{ fontSize: 10, fill: "var(--muted)", fontFamily: "var(--sans)" }}
-            tickLine={false}
-            axisLine={{ stroke: "var(--rule)" }}
-            tickCount={Math.min(n + 1, 10)}
-            allowDecimals={false}
-          />
-          <YAxis
-            type="number"
-            domain={["auto", "auto"]}
-            tickFormatter={formatAxisValue}
-            tick={{ fontSize: 10, fill: "var(--muted)", fontFamily: "var(--mono)" }}
-            tickLine={false}
-            axisLine={false}
-            width={48}
-            tickMargin={8}
-            hide={!hasMetrics}
-          />
-          <Tooltip
-            content={(p) => (
-              <RunMapTooltip active={p.active} payload={p.payload as readonly TooltipEntry[]} />
-            )}
-            cursor={{ stroke: "var(--rule)", strokeDasharray: "3 3", strokeWidth: 1 }}
-            isAnimationActive={false}
-          />
-          {/* Step-line connecting the running-best frontier nodes */}
-          <Line
-            dataKey="frontierY"
-            type="stepAfter"
-            stroke="var(--accent)"
-            strokeWidth={2}
-            strokeOpacity={0.75}
-            dot={false}
-            activeDot={false}
-            connectNulls
-            isAnimationActive={false}
-          />
-          {/* Invisible line keeps Recharts' tooltip hit-testing on every point */}
-          <Line dataKey="y" stroke="transparent" strokeWidth={0} dot={false} activeDot={false} />
-          {/* Dots + labels rendered as a direct child (outside the Line clip group) */}
-          <RunMapDotLayer
-            data={data}
-            frontierKeys={frontierKeys}
-            selectedKey={props.selectedKey}
-            onSelect={props.onSelect}
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
+      {metricCount === 0 ? (
+        <div className="map-chart-diagnostic">
+          <span>No plottable metric facts.</span>
+          <span>Publish numeric facts in live details to draw the run map.</span>
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={340}>
+          <ComposedChart data={data} margin={{ top: 72, right: 28, bottom: 30, left: 12 }}>
+            <CartesianGrid stroke="var(--rule-soft)" strokeDasharray="2 4" vertical={false} />
+            <XAxis
+              dataKey="index"
+              type="number"
+              domain={[-0.4, n - 0.6]}
+              label={{
+                value: "Experiment #",
+                position: "insideBottom",
+                offset: -16,
+                style: {
+                  fontSize: 10,
+                  fill: "var(--muted)",
+                  fontFamily: "var(--sans)",
+                  letterSpacing: "0.04em",
+                },
+              }}
+              tick={{ fontSize: 10, fill: "var(--muted)", fontFamily: "var(--sans)" }}
+              tickLine={false}
+              axisLine={{ stroke: "var(--rule)" }}
+              tickCount={Math.min(n + 1, 10)}
+              allowDecimals={false}
+            />
+            <YAxis
+              type="number"
+              domain={["auto", "auto"]}
+              tickFormatter={formatAxisValue}
+              tick={{ fontSize: 10, fill: "var(--muted)", fontFamily: "var(--mono)" }}
+              tickLine={false}
+              axisLine={false}
+              width={48}
+              tickMargin={8}
+              hide={!hasMetrics}
+            />
+            <Tooltip
+              content={(p) => (
+                <RunMapTooltip active={p.active} payload={p.payload as readonly TooltipEntry[]} />
+              )}
+              cursor={{ stroke: "var(--rule)", strokeDasharray: "3 3", strokeWidth: 1 }}
+              isAnimationActive={false}
+            />
+            {/* Step-line connecting the running-best frontier nodes */}
+            <Line
+              dataKey="frontierY"
+              type="stepAfter"
+              stroke="var(--accent)"
+              strokeWidth={2}
+              strokeOpacity={0.75}
+              dot={false}
+              activeDot={false}
+              connectNulls
+              isAnimationActive={false}
+            />
+            {/* Invisible line keeps Recharts' tooltip hit-testing on every point */}
+            <Line dataKey="y" stroke="transparent" strokeWidth={0} dot={false} activeDot={false} />
+            {/* Dots + labels rendered as a direct child (outside the Line clip group) */}
+            <RunMapDotLayer
+              data={data}
+              frontierKeys={frontierKeys}
+              selectedKey={props.selectedKey}
+              onSelect={props.onSelect}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }
@@ -2121,6 +2158,29 @@ const liveCss = `
   font-family: var(--sans);
   font-size: 9px;
   color: var(--muted);
+}
+
+.map-chart-diagnostic {
+  min-height: 340px;
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  padding: 24px;
+  text-align: center;
+  font-family: var(--sans);
+  color: var(--muted);
+}
+
+.map-chart-diagnostic span:first-child {
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.map-chart-diagnostic span:last-child {
+  max-width: 320px;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .map-tooltip {

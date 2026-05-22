@@ -17,6 +17,7 @@ import {
   type LiveMapEdgeRecord,
   type LiveMapEdgeRelation,
   type LiveMapNodeKind,
+  type LiveMetricDirection,
   type LiveMapNodeRecord,
   type LiveNodeDetailRecord,
   type LiveNodeFact,
@@ -26,6 +27,7 @@ import {
   liveEdgeTones,
   liveFocusModes,
   liveMapEdgeRelations,
+  liveMetricDirections,
   liveMapNodeKinds,
   liveTones,
   liveVisibilities,
@@ -326,6 +328,39 @@ function normalizeFact(input: { readonly field: string; readonly fact: unknown }
       fact.tone === undefined
         ? undefined
         : normalizeTone({ field: `${input.field}.tone`, value: fact.tone }),
+    metricName: optionalNonEmptyString({
+      field: `${input.field}.metricName`,
+      value: fact.metricName,
+    }),
+    numericValue: optionalFiniteNumber({
+      field: `${input.field}.numericValue`,
+      value: fact.numericValue,
+    }),
+    unit: optionalNonEmptyString({ field: `${input.field}.unit`, value: fact.unit }),
+    direction:
+      fact.direction === undefined
+        ? undefined
+        : normalizeMetricDirection({
+            field: `${input.field}.direction`,
+            value: fact.direction,
+          }),
+  });
+}
+
+function normalizeMetricDirection(input: {
+  readonly field: string;
+  readonly value: unknown;
+}): LiveMetricDirection {
+  if (
+    typeof input.value === "string" &&
+    (liveMetricDirections as readonly string[]).includes(input.value)
+  ) {
+    return input.value as LiveMetricDirection;
+  }
+
+  throw new ValidationError({
+    message: "Invalid live metric direction.",
+    details: { field: input.field, value: input.value, supported: liveMetricDirections },
   });
 }
 
@@ -464,6 +499,24 @@ function optionalNonEmptyString(input: {
   }
 
   return requireNonEmptyString({ field: input.field, value: input.value });
+}
+
+function optionalFiniteNumber(input: {
+  readonly field: string;
+  readonly value?: unknown;
+}): number | undefined {
+  if (input.value === undefined) {
+    return undefined;
+  }
+
+  if (typeof input.value === "number" && Number.isFinite(input.value)) {
+    return input.value;
+  }
+
+  throw new ValidationError({
+    message: "Expected a finite number.",
+    details: { field: input.field },
+  });
 }
 
 function withOptional<T extends Record<string, unknown>>(input: T): T {

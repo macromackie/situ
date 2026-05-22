@@ -136,11 +136,34 @@ test("creates normalized live presentation records", () => {
       projectId,
       nodeKey: "parser",
       bodyMarkdown: "Parser branch is ahead.",
-      facts: [{ label: "Delta", value: "+0.09", tone: "good" }],
+      facts: [
+        {
+          label: "Delta",
+          value: "+0.09",
+          tone: "good",
+          metricName: "dev_accuracy",
+          numericValue: 0.09,
+          unit: "accuracy",
+          direction: "higher_is_better",
+        },
+      ],
       refs: [experimentRef],
       authoredBy,
     }),
-  ).toMatchObject({ nodeKey: "parser", facts: [{ label: "Delta", value: "+0.09", tone: "good" }] });
+  ).toMatchObject({
+    nodeKey: "parser",
+    facts: [
+      {
+        label: "Delta",
+        value: "+0.09",
+        tone: "good",
+        metricName: "dev_accuracy",
+        numericValue: 0.09,
+        unit: "accuracy",
+        direction: "higher_is_better",
+      },
+    ],
+  });
 });
 
 test("rejects invalid live presentation records", () => {
@@ -177,6 +200,24 @@ test("rejects invalid live presentation records", () => {
       nodeKey: "node",
       bodyMarkdown: "Body",
       facts: [{ label: "", value: "x" }],
+      authoredBy: baseInput.authoredBy,
+    }),
+  ).toThrow(ValidationError);
+  expect(() =>
+    createLiveNodeDetailRecord({
+      projectId,
+      nodeKey: "node",
+      bodyMarkdown: "Body",
+      facts: [{ label: "Metric", value: "0.1", direction: "sideways" as never }],
+      authoredBy: baseInput.authoredBy,
+    }),
+  ).toThrow(ValidationError);
+  expect(() =>
+    createLiveNodeDetailRecord({
+      projectId,
+      nodeKey: "node",
+      bodyMarkdown: "Body",
+      facts: [{ label: "Metric", value: "0.1", numericValue: Number.NaN }],
       authoredBy: baseInput.authoredBy,
     }),
   ).toThrow(ValidationError);

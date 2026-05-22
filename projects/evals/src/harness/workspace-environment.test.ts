@@ -31,6 +31,9 @@ test("workspace evidence captures the generated visual Situ report", () => {
     expect(output.visualReport.command).toContain("html");
     expect(output.visualReportPath).toBe(join(environment.runOutputPath, "SITU_REPORT.html"));
     expect(output.visualReportHtml).toContain("Visual Situ Report");
+    expect(output.liveRecords.stdout).toBe(
+      '{"signals":[],"mapNodes":[],"mapEdges":[],"focuses":[],"nodeDetails":[]}\n',
+    );
     expect(output.runArtifacts.map((artifact) => artifact.relativePath)).toContain(
       "SITU_REPORT.html",
     );
@@ -109,6 +112,7 @@ function writeFakeSituCli(input: { readonly binPath: string }): void {
       "    fi",
       "    ;;",
       '  *"experiments list"*) printf \'{"experiments":[]}\\n\' ;;',
+      '  *"live list"*) printf \'{"signals":[],"mapNodes":[],"mapEdges":[],"focuses":[],"nodeDetails":[]}\\n\' ;;',
       '  *"baselines list"*) printf \'{"baselines":[]}\\n\' ;;',
       '  *"measurements list"*) printf \'{"measurements":[]}\\n\' ;;',
       '  *"measurements recent"*) printf \'{"measurements":[]}\\n\' ;;',

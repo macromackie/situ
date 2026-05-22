@@ -168,6 +168,11 @@ export function collectWorkspaceRunEvidence(input: {
     environment: commandEnvironment,
     args: ["--json", "experiments", "list", "--project-id", input.workspaceCase.projectId],
   });
+  const liveRecords = runSituCommand({
+    repositoryPath,
+    environment: commandEnvironment,
+    args: ["--json", "live", "list", "--project-id", input.workspaceCase.projectId],
+  });
   const baselinesList = runSituCommand({
     repositoryPath,
     environment: commandEnvironment,
@@ -277,6 +282,7 @@ export function collectWorkspaceRunEvidence(input: {
     baselinesList,
     baselineMeasurementsList,
     experimentsList,
+    liveRecords,
     eventsRecent,
     measurementsRecent,
     reportsRecent,

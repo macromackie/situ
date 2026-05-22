@@ -4,6 +4,7 @@ import {
   type LiveFocusMode,
   type LiveMapEdgeRelation,
   type LiveMapNodeKind,
+  type LiveMetricDirection,
   type LiveNodeFact,
   type LiveProjectRecords,
   type LiveTone,
@@ -11,6 +12,7 @@ import {
   liveEdgeTones,
   liveFocusModes,
   liveMapEdgeRelations,
+  liveMetricDirections,
   liveMapNodeKinds,
   liveTones,
   liveVisibilities,
@@ -25,6 +27,7 @@ import {
   createLiveNodeDetailAction,
   createLiveSignalAction,
   listLiveRecordsForProjectAction,
+  publishLiveAttemptAction,
 } from "../../actions/index.js";
 import { openAppDatabase } from "../../db/index.js";
 import {
@@ -87,6 +90,15 @@ export function runLiveCommand(input: { readonly invocation: SituCliInvocation }
             invocation: input.invocation,
             data: result,
             text: `Created live detail ${result.detail.id}`,
+          });
+        }
+
+        case "attempts-publish": {
+          const result = publishLiveAttemptAction({ context, ...parsedCommand });
+          return formatDataResult({
+            invocation: input.invocation,
+            data: result,
+            text: `Published live attempt ${result.node.id}`,
           });
         }
 
@@ -161,6 +173,31 @@ type ParsedLiveCommand =
       readonly bodyMarkdown: string;
       readonly facts: readonly LiveNodeFact[];
       readonly refs: readonly TargetRef[];
+    })
+  | (SharedSetFields & {
+      readonly subcommand: "attempts-publish";
+      readonly nodeKey: string;
+      readonly kind: LiveMapNodeKind;
+      readonly title: string;
+      readonly summary: string;
+      readonly tone: LiveTone;
+      readonly occurredAt?: IsoTimestamp;
+      readonly visibility?: LiveVisibility;
+      readonly bodyMarkdown: string;
+      readonly facts: readonly LiveNodeFact[];
+      readonly refs: readonly TargetRef[];
+      readonly edge?: {
+        readonly edgeKey?: string;
+        readonly fromNodeKey: string;
+        readonly relation: LiveMapEdgeRelation;
+        readonly tone?: LiveEdgeTone;
+        readonly visibility?: LiveVisibility;
+      };
+      readonly focus?: {
+        readonly mode: LiveFocusMode;
+        readonly summary?: string;
+        readonly relatedNodeKeys?: readonly string[];
+      };
     })
   | {
       readonly subcommand: "list";
@@ -318,6 +355,71 @@ const liveDetailSetCommand = defineCommandSpec({
   }),
 });
 
+const liveAttemptPublishCommand = defineCommandSpec({
+  command: "live attempts publish",
+  positionals: noPositionals(),
+  options: [
+    ...sharedSetOptions,
+    valueOption({ key: "nodeKey", flag: "--node-key", required: true }),
+    valueOption({ key: "kind", flag: "--kind", required: true }),
+    valueOption({ key: "title", flag: "--title", required: true }),
+    valueOption({ key: "summary", flag: "--summary", required: true }),
+    valueOption({ key: "tone", flag: "--tone", required: true }),
+    valueOption({ key: "bodyMarkdown", flag: "--body", required: true }),
+    valueOption({ key: "metricLabel", flag: "--metric-label", required: true }),
+    valueOption({ key: "metricValue", flag: "--metric-value", required: true }),
+    valueOption({ key: "metricName", flag: "--metric-name" }),
+    valueOption({ key: "metricUnit", flag: "--metric-unit" }),
+    valueOption({ key: "metricDirection", flag: "--metric-direction" }),
+    valueOption({ key: "occurredAt", flag: "--occurred-at" }),
+    valueOption({ key: "refsJson", flag: "--refs-json" }),
+    valueOption({ key: "experimentId", flag: "--experiment-id" }),
+    valueOption({ key: "baselineId", flag: "--baseline-id" }),
+    valueOption({ key: "measurementId", flag: "--measurement-id" }),
+    valueOption({ key: "fromNodeKey", flag: "--from-node-key" }),
+    valueOption({ key: "edgeKey", flag: "--edge-key" }),
+    valueOption({ key: "edgeRelation", flag: "--edge-relation" }),
+    valueOption({ key: "edgeTone", flag: "--edge-tone" }),
+    valueOption({ key: "edgeVisibility", flag: "--edge-visibility" }),
+    valueOption({ key: "focusMode", flag: "--focus-mode" }),
+    valueOption({ key: "focusSummary", flag: "--focus-summary" }),
+    valueOption({ key: "relatedNodeKeysJson", flag: "--related-node-keys-json" }),
+    valueOption({ key: "visibility", flag: "--visibility" }),
+  ],
+  schema: v.object({
+    projectId: v.string(),
+    authoredByKind: v.string(),
+    authoredById: v.string(),
+    authoredByDisplayName: v.optional(v.string()),
+    now: v.optional(v.string()),
+    nodeKey: v.string(),
+    kind: v.string(),
+    title: v.string(),
+    summary: v.string(),
+    tone: v.string(),
+    bodyMarkdown: v.string(),
+    metricLabel: v.string(),
+    metricValue: v.string(),
+    metricName: v.optional(v.string()),
+    metricUnit: v.optional(v.string()),
+    metricDirection: v.optional(v.string()),
+    occurredAt: v.optional(v.string()),
+    refsJson: v.optional(v.string()),
+    experimentId: v.optional(v.string()),
+    baselineId: v.optional(v.string()),
+    measurementId: v.optional(v.string()),
+    fromNodeKey: v.optional(v.string()),
+    edgeKey: v.optional(v.string()),
+    edgeRelation: v.optional(v.string()),
+    edgeTone: v.optional(v.string()),
+    edgeVisibility: v.optional(v.string()),
+    focusMode: v.optional(v.string()),
+    focusSummary: v.optional(v.string()),
+    relatedNodeKeysJson: v.optional(v.string()),
+    visibility: v.optional(v.string()),
+  }),
+});
+
 const liveListCommand = defineCommandSpec({
   command: "live list",
   positionals: noPositionals(),
@@ -348,6 +450,10 @@ function parseLiveCommand(invocation: SituCliInvocation): ParsedLiveCommand {
       subcommand: "list",
       projectId: options.projectId as SituId<"project">,
     };
+  }
+
+  if (section === "attempts" && action === "publish") {
+    return parseAttemptPublish({ invocation, args });
   }
 
   if (action !== "set") {
@@ -546,6 +652,83 @@ function parseDetailSet(input: {
   };
 }
 
+function parseAttemptPublish(input: {
+  readonly invocation: SituCliInvocation;
+  readonly args: readonly string[];
+}): ParsedLiveCommand {
+  const options = parseDefinedCommandSpec({
+    invocation: input.invocation,
+    args: input.args,
+    spec: liveAttemptPublishCommand,
+  });
+  const metricValue = parseFiniteNumber({
+    invocation: input.invocation,
+    flag: "--metric-value",
+    value: options.metricValue,
+  });
+  const tone = parseEnum({
+    invocation: input.invocation,
+    label: "live tone",
+    value: options.tone,
+    supported: liveTones,
+  }) as LiveTone;
+  const refs = [
+    ...parseJsonArray<TargetRef>({
+      invocation: input.invocation,
+      flag: "--refs-json",
+      value: options.refsJson,
+    }),
+    ...targetRefFor({ targetKind: "experiment", targetId: options.experimentId }),
+    ...targetRefFor({ targetKind: "baseline", targetId: options.baselineId }),
+    ...targetRefFor({ targetKind: "measurement", targetId: options.measurementId }),
+  ];
+  const edge = parseAttemptEdge({ invocation: input.invocation, options });
+  const focus = parseAttemptFocus({ invocation: input.invocation, options });
+
+  return {
+    subcommand: "attempts-publish",
+    ...parseSharedSetFields({ invocation: input.invocation, options }),
+    nodeKey: options.nodeKey,
+    kind: parseEnum({
+      invocation: input.invocation,
+      label: "live node kind",
+      value: options.kind,
+      supported: liveMapNodeKinds,
+    }) as LiveMapNodeKind,
+    title: options.title,
+    summary: options.summary,
+    tone,
+    occurredAt: options.occurredAt as IsoTimestamp | undefined,
+    visibility: parseOptionalVisibility({
+      invocation: input.invocation,
+      value: options.visibility,
+    }),
+    bodyMarkdown: options.bodyMarkdown,
+    facts: [
+      {
+        label: options.metricLabel,
+        value: options.metricValue,
+        tone,
+        numericValue: metricValue,
+        ...(options.metricName === undefined ? {} : { metricName: options.metricName }),
+        ...(options.metricUnit === undefined ? {} : { unit: options.metricUnit }),
+        direction:
+          options.metricDirection === undefined
+            ? "higher_is_better"
+            : (parseEnum({
+                invocation: input.invocation,
+                label: "live metric direction",
+                value: options.metricDirection,
+                supported: liveMetricDirections,
+              }) as LiveMetricDirection),
+      },
+    ],
+    refs,
+    ...(edge === undefined ? {} : { edge }),
+    ...(focus === undefined ? {} : { focus }),
+  };
+}
+
 function parseSharedSetFields(input: {
   readonly invocation: SituCliInvocation;
   readonly options: {
@@ -584,6 +767,110 @@ function parseOptionalVisibility(input: {
   }) as LiveVisibility;
 }
 
+function parseAttemptEdge(input: {
+  readonly invocation: SituCliInvocation;
+  readonly options: {
+    readonly fromNodeKey?: string;
+    readonly edgeKey?: string;
+    readonly edgeRelation?: string;
+    readonly edgeTone?: string;
+    readonly edgeVisibility?: string;
+  };
+}): Extract<ParsedLiveCommand, { readonly subcommand: "attempts-publish" }>["edge"] {
+  const hasEdgeFlag =
+    input.options.fromNodeKey !== undefined ||
+    input.options.edgeKey !== undefined ||
+    input.options.edgeRelation !== undefined ||
+    input.options.edgeTone !== undefined ||
+    input.options.edgeVisibility !== undefined;
+
+  if (!hasEdgeFlag) {
+    return undefined;
+  }
+
+  if (input.options.fromNodeKey === undefined) {
+    throwParserError({
+      message: "Missing required flag --from-node-key.",
+      details: { flag: "--from-node-key" },
+      outputMode: input.invocation.outputMode,
+    });
+  }
+
+  return {
+    fromNodeKey: input.options.fromNodeKey,
+    ...(input.options.edgeKey === undefined ? {} : { edgeKey: input.options.edgeKey }),
+    relation: (input.options.edgeRelation === undefined
+      ? "led_to"
+      : parseEnum({
+          invocation: input.invocation,
+          label: "live edge relation",
+          value: input.options.edgeRelation,
+          supported: liveMapEdgeRelations,
+        })) as LiveMapEdgeRelation,
+    ...(input.options.edgeTone === undefined
+      ? {}
+      : {
+          tone: parseEnum({
+            invocation: input.invocation,
+            label: "live edge tone",
+            value: input.options.edgeTone,
+            supported: liveEdgeTones,
+          }) as LiveEdgeTone,
+        }),
+    ...(input.options.edgeVisibility === undefined
+      ? {}
+      : {
+          visibility: parseEnum({
+            invocation: input.invocation,
+            label: "live visibility",
+            value: input.options.edgeVisibility,
+            supported: liveVisibilities,
+          }) as LiveVisibility,
+        }),
+  };
+}
+
+function parseAttemptFocus(input: {
+  readonly invocation: SituCliInvocation;
+  readonly options: {
+    readonly focusMode?: string;
+    readonly focusSummary?: string;
+    readonly relatedNodeKeysJson?: string;
+  };
+}): Extract<ParsedLiveCommand, { readonly subcommand: "attempts-publish" }>["focus"] {
+  const hasFocusFlag =
+    input.options.focusMode !== undefined ||
+    input.options.focusSummary !== undefined ||
+    input.options.relatedNodeKeysJson !== undefined;
+
+  if (!hasFocusFlag) {
+    return undefined;
+  }
+
+  if (input.options.focusMode === undefined) {
+    throwParserError({
+      message: "Missing required flag --focus-mode.",
+      details: { flag: "--focus-mode" },
+      outputMode: input.invocation.outputMode,
+    });
+  }
+
+  return {
+    mode: parseEnum({
+      invocation: input.invocation,
+      label: "live focus mode",
+      value: input.options.focusMode,
+      supported: liveFocusModes,
+    }) as LiveFocusMode,
+    ...(input.options.focusSummary === undefined ? {} : { summary: input.options.focusSummary }),
+    relatedNodeKeys: parseJsonArray<string>({
+      invocation: input.invocation,
+      flag: "--related-node-keys-json",
+      value: input.options.relatedNodeKeysJson,
+    }),
+  };
+}
+
 function parseEnum(input: {
   readonly invocation: SituCliInvocation;
   readonly label: string;
@@ -597,6 +884,24 @@ function parseEnum(input: {
   throwParserError({
     message: `Invalid ${input.label}: ${input.value}.`,
     details: { value: input.value, allowedValues: input.supported },
+    outputMode: input.invocation.outputMode,
+  });
+}
+
+function parseFiniteNumber(input: {
+  readonly invocation: SituCliInvocation;
+  readonly flag: string;
+  readonly value: string;
+}): number {
+  const parsed = Number(input.value);
+
+  if (Number.isFinite(parsed)) {
+    return parsed;
+  }
+
+  throwParserError({
+    message: `Expected ${input.flag} to be a finite number.`,
+    details: { flag: input.flag, value: input.value },
     outputMode: input.invocation.outputMode,
   });
 }
@@ -633,6 +938,22 @@ function parseJsonArray<TValue>(input: {
     details: { flag: input.flag },
     outputMode: input.invocation.outputMode,
   });
+}
+
+function targetRefFor(input: {
+  readonly targetKind: TargetRef["targetKind"];
+  readonly targetId?: string;
+}): readonly TargetRef[] {
+  if (input.targetId === undefined) {
+    return [];
+  }
+
+  return [
+    {
+      targetKind: input.targetKind,
+      targetId: input.targetId as TargetRef["targetId"],
+    },
+  ];
 }
 
 function formatLiveRecordsSummary(records: LiveProjectRecords): string {

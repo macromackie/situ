@@ -69,6 +69,7 @@ export type WorkspaceAutoresearchOutput = {
   readonly baselinesList: CommandResult;
   readonly baselineMeasurementsList: CommandResult;
   readonly experimentsList: CommandResult;
+  readonly liveRecords: CommandResult;
   readonly eventsRecent: CommandResult;
   readonly measurementsRecent: CommandResult;
   readonly reportsRecent: CommandResult;

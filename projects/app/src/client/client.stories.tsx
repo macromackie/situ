@@ -62,6 +62,10 @@ export const AutoresearchRun: Story = {
   render: () => <ProjectOverviewSurface model={autoresearchModel} synced />,
 };
 
+export const AutoresearchProgress: Story = {
+  render: () => <ProjectOverviewSurface model={autoresearchProgressModel} synced />,
+};
+
 export const OnTrackRun: Story = {
   render: () => <ProjectOverviewSurface model={onTrackModel} synced />,
 };
@@ -584,7 +588,17 @@ const autoresearchModel = (() => {
       projectId,
       nodeKey: s.key,
       bodyMarkdown: `Accuracy: **${(s.metric ?? 0).toFixed(3)}**`,
-      facts: [{ label: "Accuracy", value: String(s.metric), tone: "neutral" as LiveTone }],
+      facts: [
+        {
+          label: "Accuracy",
+          value: String(s.metric),
+          tone: "neutral" as LiveTone,
+          metricName: "dev_accuracy",
+          numericValue: s.metric ?? 0,
+          unit: "accuracy",
+          direction: "higher_is_better",
+        },
+      ],
       refs: [],
       authoredBy: manager,
       metadata: metadata(`2026-05-20T16:${String(i).padStart(2, "0")}:01.000Z`),
@@ -681,6 +695,193 @@ const autoresearchModel = (() => {
   const model = buildProjectOverviewModel({ records, requestedProjectId: projectId });
   if (model.kind !== "project")
     throw new Error("Expected autoresearch story to build a project model.");
+  return model;
+})();
+
+type ProgressKeep = {
+  readonly index: number;
+  readonly title: string;
+  readonly value: number;
+};
+
+const progressKeeps: readonly ProgressKeep[] = [
+  { index: 0, title: "baseline", value: 0.9979 },
+  { index: 2, title: "halve total batch 524k->262k", value: 0.9907 },
+  { index: 6, title: "warmdown 0.5->0.7", value: 0.9896 },
+  { index: 8, title: "add 5% warmup", value: 0.9874 },
+  { index: 14, title: "depth 9 aspect ratio 57", value: 0.9845 },
+  { index: 23, title: "t0 lambda init 0.1->0.05", value: 0.9839 },
+  { index: 28, title: "unembedding LR 0.0004->0.008", value: 0.9834 },
+  { index: 32, title: "SSSSL window pattern", value: 0.9821 },
+  { index: 38, title: "short window 1/4 context", value: 0.9799 },
+  { index: 39, title: "short window 1/8 context", value: 0.9796 },
+  { index: 43, title: "embedding LR 0.6->0.8", value: 0.9789 },
+  { index: 64, title: "RoPE base frequency 10000->5000", value: 0.9783 },
+  { index: 65, title: "RoPE base frequency 5000->10000", value: 0.978 },
+  { index: 67, title: "RoPE base frequency 100000->200000", value: 0.9777 },
+  { index: 74, title: "random seed 42->137", value: 0.9773 },
+];
+
+const progressKeepByIndex = new Map(progressKeeps.map((keep) => [keep.index, keep]));
+
+function progressDiscardedValue(index: number): number {
+  const previousBest =
+    [...progressKeeps].reverse().find((keep) => keep.index < index)?.value ??
+    progressKeeps[0].value;
+  const offset = 0.0008 + ((index * 37) % 21) / 10000;
+  return Math.min(1.0005, previousBest + offset);
+}
+
+const autoresearchProgressModel = (() => {
+  const specs = Array.from({ length: 83 }, (_, index) => {
+    const kept = progressKeepByIndex.get(index);
+    const value = kept?.value ?? progressDiscardedValue(index);
+    return {
+      key: `progress_${index}`,
+      title: kept?.title ?? `candidate ${index}`,
+      value,
+      tone: kept === undefined ? ("done" as LiveTone) : ("good" as LiveTone),
+      kind: index === 0 ? ("baseline" as LiveMapNodeKind) : ("branch" as LiveMapNodeKind),
+      kept: kept !== undefined,
+    };
+  });
+
+  const nodes: LiveMapNodeRecord[] = specs.map((spec, index) => ({
+    id: `live_node_progress_${index}` as SituId<"live_node">,
+    projectId,
+    nodeKey: spec.key,
+    kind: spec.kind,
+    title: spec.title,
+    summary: `Validation BPB ${spec.value.toFixed(4)}.`,
+    tone: spec.tone,
+    refs: [],
+    visibility: "visible" as const,
+    authoredBy: manager,
+    metadata: metadata(`2026-05-20T17:${String(index % 60).padStart(2, "0")}:00.000Z`),
+  }));
+
+  const details: LiveNodeDetailRecord[] = specs.map((spec, index) => ({
+    id: `live_detail_progress_${index}` as SituId<"live_detail">,
+    projectId,
+    nodeKey: spec.key,
+    bodyMarkdown: `${spec.title}: validation BPB ${spec.value.toFixed(4)}.`,
+    facts: [
+      {
+        label: "Validation BPB",
+        value: spec.value.toFixed(4),
+        tone: spec.kept ? "good" : "neutral",
+        metricName: "validation_bpb",
+        numericValue: spec.value,
+        unit: "bpb",
+        direction: "lower_is_better",
+      },
+    ],
+    refs: [],
+    authoredBy: manager,
+    metadata: metadata(`2026-05-20T17:${String(index % 60).padStart(2, "0")}:01.000Z`),
+  }));
+
+  const records: ClientRecords = {
+    ...emptyRecords(),
+    projects: [
+      projectRecord({
+        name: "Autoresearch progress",
+        repositoryPath: "/Users/scott/situ/workspaces/autoresearch-progress",
+      }),
+    ],
+    tasks: [taskRecord({ status: "in_progress" })],
+    baselines: [baselineRecord()],
+    experiments: [],
+    measurements: [],
+    reviews: [],
+    artifacts: [],
+    reports: [],
+    briefings: [
+      briefing({
+        id: "briefing_story_autoresearch_progress" as SituId<"briefing">,
+        title: "Autoresearch progress",
+        stage: "evaluating",
+        assessment: "on_track",
+        headlineMarkdown:
+          "83 experiments run. 15 kept improvements have lowered validation BPB to **0.9773**.",
+        blocks: [
+          {
+            type: "status",
+            summaryMarkdown:
+              "The manager is keeping the lower-is-better frontier visible while discarded attempts remain inspectable as context.",
+          },
+          {
+            type: "callout",
+            tone: "finding",
+            bodyMarkdown:
+              "Schedule and RoPE frequency changes account for the most recent frontier moves.",
+          },
+        ],
+        createdAt: "2026-05-20T17:25:00.000Z",
+      }),
+    ],
+    liveSignals: [
+      liveSignalRecord({
+        id: "live_signal_progress_best" as SituId<"live_signal">,
+        slot: "metric",
+        label: "Best BPB",
+        value: "0.9773",
+        summary: "Lower is better.",
+        tone: "good",
+        createdAt: "2026-05-20T17:25:10.000Z",
+      }),
+      liveSignalRecord({
+        id: "live_signal_progress_count" as SituId<"live_signal">,
+        slot: "experiments",
+        label: "Experiments",
+        value: "83 run",
+        summary: "15 kept improvements.",
+        tone: "neutral",
+        createdAt: "2026-05-20T17:25:20.000Z",
+      }),
+      liveSignalRecord({
+        id: "live_signal_progress_frontier" as SituId<"live_signal">,
+        slot: "frontier",
+        label: "Frontier",
+        value: "15 kept",
+        summary: "Random seed holds current best.",
+        tone: "good",
+        createdAt: "2026-05-20T17:25:30.000Z",
+      }),
+    ],
+    liveMapNodes: nodes,
+    liveMapEdges: progressKeeps.slice(1).map((keep, index) => ({
+      id: `live_edge_progress_${index}` as SituId<"live_edge">,
+      projectId,
+      edgeKey: `progress_${progressKeeps[index]?.index ?? 0}_to_${keep.index}`,
+      fromNodeKey: `progress_${progressKeeps[index]?.index ?? 0}`,
+      toNodeKey: `progress_${keep.index}`,
+      relation: "led_to" as const,
+      tone: "good" as const,
+      visibility: "visible" as const,
+      authoredBy: manager,
+      metadata: metadata(`2026-05-20T17:${String((index + 30) % 60).padStart(2, "0")}:02.000Z`),
+    })),
+    liveFocuses: [
+      liveFocusRecord({
+        id: "live_focus_progress" as SituId<"live_focus">,
+        mode: "overview",
+        primaryNodeKey: "progress_74",
+        relatedNodeKeys: ["progress_64", "progress_65", "progress_67"],
+        summary: "Current frontier: 0.9773 validation BPB",
+        createdAt: "2026-05-20T17:25:40.000Z",
+      }),
+    ],
+    liveNodeDetails: details,
+    comments: [],
+    events: [],
+    notifications: [],
+  };
+
+  const model = buildProjectOverviewModel({ records, requestedProjectId: projectId });
+  if (model.kind !== "project") {
+    throw new Error("Expected progress story to build a project model.");
+  }
   return model;
 })();
 

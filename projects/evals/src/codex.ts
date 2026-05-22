@@ -240,6 +240,7 @@ export function buildWorkspaceEvidenceMarkdown(input: {
     ["Baselines JSON", input.output.baselinesList.stdout],
     ["Baseline Measurements JSON", input.output.baselineMeasurementsList.stdout],
     ["Experiments JSON", input.output.experimentsList.stdout],
+    ["Live Records JSON", input.output.liveRecords.stdout],
     ["Measurements Recent JSON", input.output.measurementsRecent.stdout],
     ["Events Recent JSON", input.output.eventsRecent.stdout],
     ["Recent Reports JSON", input.output.reportsRecent.stdout],
@@ -318,7 +319,8 @@ function buildCodexWorkspaceManagerPrompt(input: {
     "5. Create git worktree branches under `$SITU_EVAL_WORKTREES_DIR` and store `baseRef`, `branchName`, and `worktreePath` on experiments.",
     "6. After the baseline and candidate records exist, strongly prefer parallel native subagents for independent candidate work.",
     "7. Record measurements, status, reviews/comments/reports, and artifacts through `situ`.",
-    "8. Surface progress with `situ status --json` and `situ verify --json`.",
+    "8. Publish each measured baseline and candidate to the live run map with `situ live attempts publish` so the dashboard has authored chart state.",
+    "9. Surface progress with `situ status --json` and `situ verify --json`.",
     "",
     "Baseline requirements:",
     `- Run \`${input.workspaceCase.harnessCommand}\` before edits.`,
@@ -407,6 +409,7 @@ function buildCodexWorkspaceManagerPrompt(input: {
     "- situ tasks create ...",
     "- situ experiments create ... --base-ref <git-ref> --branch-name <branch> --worktree-path <path> ...",
     "- situ measurements create --experiment-id <experiment-id> --revision-number <n> --metric-name <name> --value <value> --summary <markdown> --actor-kind local_agent --actor-id <actor-id>",
+    `- situ live attempts publish --project-id ${input.workspaceCase.projectId} --authored-by-kind local_agent --authored-by-id manager --node-key <key> --kind branch --title <title> --summary <summary> --tone <neutral|good|watch|blocked|done> --body <markdown> --metric-label dev_accuracy --metric-name dev_accuracy --metric-value <value> --metric-direction higher_is_better --experiment-id <experiment-id> --measurement-id <measurement-id> --from-node-key <previous-key> --focus-mode node`,
     `- situ reports create --project-id ${input.workspaceCase.projectId} --target-kind project --target-id ${input.workspaceCase.projectId} --title "Checkpoint report" --body <markdown> --generated-by-kind local_agent --generated-by-id manager`,
     `- situ reports instructions --project-id ${input.workspaceCase.projectId}`,
     `- situ reports preview --project-id ${input.workspaceCase.projectId} --draft <draft.mdx>`,
@@ -419,7 +422,7 @@ function buildCodexWorkspaceManagerPrompt(input: {
     "- Keep going with real autoresearch until the external timeout stops you or the run is genuinely complete.",
     "- Before declaring complete, run the final authored research report flow (instructions → edit draft.mdx → preview until clean → submit). The authored MDX is the run's durable artifact; an unauthored run is incomplete unless time literally ran out.",
     "- Optionally write `FINAL_REPORT.md` alongside for a free-form Markdown summary, but the authored MDX is the primary deliverable.",
-    "- Only treat the goal as complete after checking Situ status, Situ verify, protected diffs, measurements, the authored report submission, and that `situ reports generate --format html` returns the compiled authored HTML.",
+    "- Only treat the goal as complete after checking Situ status, Situ verify, protected diffs, measurements, live map records, the authored report submission, and that `situ reports generate --format html` returns the compiled authored HTML.",
   ].join("\n");
 }
 
@@ -648,6 +651,7 @@ function judgeRubricLines(workspaceCase: WorkspaceAutoresearchCase): readonly st
       "- 0.12: The manager chose a candidate branch as base and created a follow-up synthesis experiment from that base.",
       "- 0.10: The synthesis branch used `git cherry-pick -x` to bring useful commits from other candidate branches.",
       "- 0.10: Protected files stayed unchanged and measurements make the combined result understandable.",
+      "- Live map records should cover measured candidates with plottable metric facts; treat missing live map state as an evidence-clarity weakness.",
       "- 0.20: The manager authored a final research report via `situ reports submit` (MDX through `@situ/reports-ui` components) AND the rendered HTML reads as a research artifact: editorial layout, captioned figures, baseline + experiments + lineage all surfaced, prose that summarizes what was learned. Skip this credit if no authored report was submitted or the rendered output is a generic dump.",
     ];
   }
@@ -659,7 +663,7 @@ function judgeRubricLines(workspaceCase: WorkspaceAutoresearchCase): readonly st
     "- 0.15: Candidate experiments used ordinary tasks, experiment records, measurements, and git worktrees.",
     "- 0.10: Independent candidate work shows native subagent/worker evidence, or a concrete direct-work fallback explanation.",
     "- 0.10: Protected files stayed unchanged and held-out data was respected.",
-    "- 0.10: The evidence makes partial progress understandable, even if the external timeout cut off the run.",
+    "- 0.10: The evidence makes partial progress understandable, including live map records with plottable metric facts for measured candidates, even if the external timeout cut off the run.",
     "- 0.25: The manager authored a final research report via `situ reports submit` (MDX through `@situ/reports-ui` components) AND the rendered HTML reads as a research artifact: editorial layout, captioned figures, baseline + experiments + outcomes all surfaced, prose that summarizes what was learned. Skip this credit if no authored report was submitted or the rendered output is a generic dump.",
   ];
 }
@@ -669,7 +673,7 @@ function judgeFacetLines(workspaceCase: WorkspaceAutoresearchCase): readonly str
     "- `baseline-discipline`: Did the manager establish and use dynamic baseline evidence before candidate work?",
     "- `delegation-and-parallelism`: Did the manager use native workers for independent candidate work, or give a credible visible fallback?",
     "- `research-quality`: Did the experiments make useful, measurement-backed progress toward the objective?",
-    "- `evidence-clarity`: Are Situ records, worktrees, outputs, and reports sufficient to understand the run?",
+    "- `evidence-clarity`: Are Situ records, live map records, worktrees, outputs, and reports sufficient to understand the run?",
     "- `authored-report-presence`: Did the manager submit a final MDX research report via `situ reports submit` (look for a project-targeted `ReportRecord` whose `bodyMarkdown` starts with `<ResearchReport`, and an attached `text/html` artifact)? A non-authored run earns 0 here.",
     "- `authored-report-quality`: Read the captured `SITU_REPORT.html` and judge it as a research artifact: editorial layout, large display title and italic lede, captioned figures (progress chart, lineage, swimlanes, outcomes), `<BaselineCard>` and per-experiment `<EvidenceBlock>` content matching the snapshot, `<MetricCard>` values traceable to real measurements, and prose that explains what was tried and what was learned. Score how closely it reads like a polished short research write-up versus a generic data dump.",
     "- `protected-data-safety`: Were protected files and held-out data respected?",
