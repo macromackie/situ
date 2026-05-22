@@ -165,13 +165,15 @@ export function processReplicachePull(input: ProcessReplicachePullInput): Replic
         });
       }
 
+      const cookie = computePullCookie(patch);
+
       return {
-        cookie: computePullCookie(patch),
+        cookie,
         lastMutationIDChanges: listLastMutationIdChanges({
           database,
           clientGroupID: input.pullRequest.clientGroupID,
         }),
-        patch,
+        patch: input.pullRequest.cookie === cookie ? [] : patch,
       };
     },
   });

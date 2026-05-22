@@ -978,6 +978,32 @@ test("returns clear-only patch and empty mutation changes for an empty product d
   }
 });
 
+test("returns an empty patch when the client already has the current pull cookie", () => {
+  const database = openAppDatabase({ databasePath: memoryDatabasePath });
+
+  try {
+    const first = processReplicachePull({
+      database,
+      pullRequest: pull({ clientGroupID: "client-group-repeat" }),
+    });
+    const repeat = processReplicachePull({
+      database,
+      pullRequest: pull({
+        clientGroupID: "client-group-repeat",
+        cookie: first.cookie,
+      }),
+    });
+
+    expect(repeat).toEqual({
+      cookie: first.cookie,
+      lastMutationIDChanges: {},
+      patch: [],
+    });
+  } finally {
+    database.close();
+  }
+});
+
 test("validates pull request envelopes", () => {
   expect(
     parseReplicachePullRequest({

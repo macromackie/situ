@@ -9,6 +9,7 @@
   },
   "scripts": {
     "check": "mise run check",
+    "live-ui:build": "vite build --config vite.live-ui.config.ts",
     "storybook": "storybook dev -p 6007",
     "storybook:build": "storybook build -o storybook-static",
     "typecheck": "tsgo --noEmit -p tsconfig.json",
@@ -35,6 +36,7 @@
     "@situ/reports-ui": "workspace:*",
     "@situ/reviews": "workspace:*",
     "@situ/tasks": "workspace:*",
+    "@tanstack/react-router": "^1.170.7",
     "execa": "9.6.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",

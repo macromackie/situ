@@ -94,15 +94,18 @@ jobs:
           "$SITU_BIN_DIR/situ" --version
           "$SITU_BIN_DIR/situ" doctor
 
-          # The compiled binary must serve the pre-built live UI bundle.
+          # The compiled binary must serve the pre-built Vite live UI.
           "$SITU_BIN_DIR/situ" --db "$RUNNER_TEMP/serve-check.db" serve --port 7399 &
           serve_pid=$!
           trap 'kill "$serve_pid" 2>/dev/null || true' EXIT
           for _ in $(seq 1 30); do
-            curl -fsS "http://127.0.0.1:7399/assets/app.js" -o /dev/null && break
+            curl -fsS "http://127.0.0.1:7399/" -o "$RUNNER_TEMP/live-ui.html" && break
             sleep 1
           done
-          curl -fsS "http://127.0.0.1:7399/assets/app.js" -o /dev/null
+          curl -fsS "http://127.0.0.1:7399/" -o "$RUNNER_TEMP/live-ui.html"
+          asset_path=$(grep -Eo '(src|href)="/assets/[^"]+"' "$RUNNER_TEMP/live-ui.html" | head -n 1 | cut -d '"' -f 2)
+          test -n "$asset_path"
+          curl -fsS "http://127.0.0.1:7399$asset_path" -o /dev/null
           kill "$serve_pid" 2>/dev/null || true
 
       - name: Upload release archive

@@ -60,6 +60,16 @@ async function withTempDatabasePath(
   }
 }
 
+function firstLiveUiAssetPath(html: string): string {
+  const match = /(?:src|href)="(\/assets\/[^"]+)"/.exec(html);
+
+  if (match?.[1] === undefined) {
+    throw new Error("Expected live UI shell to reference a Vite asset.");
+  }
+
+  return match[1];
+}
+
 test("exports the public HTTP request contract from the app root", () => {
   expect(supportedMethods).toEqual(["GET", "POST", "PUT", "PATCH", "DELETE"]);
   expect(typeof handleSituHttpRequest).toBe("function");
@@ -97,11 +107,12 @@ test("serves the live report shell without opening the database", async () => {
     });
 
     expect(root.response.status).toBe(200);
-    expect(root.text).toContain('<script type="module" src="/assets/app.js"></script>');
+    expect(root.text).toContain('<div id="root">');
+    expect(firstLiveUiAssetPath(root.text).startsWith("/assets/")).toBe(true);
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
     expect(text).toContain('<div id="root">');
-    expect(text).toContain('<script type="module" src="/assets/app.js"></script>');
+    expect(firstLiveUiAssetPath(text).startsWith("/assets/")).toBe(true);
     expect(existsSync(dirname(databasePath))).toBe(false);
     expect(existsSync(databasePath)).toBe(false);
   } finally {
@@ -109,15 +120,46 @@ test("serves the live report shell without opening the database", async () => {
   }
 });
 
-test("serves the live report browser bundle", async () => {
+test("serves the live report Vite assets referenced by the shell", async () => {
+  const shell = await responseText({
+    method: "GET",
+    path: "/",
+  });
   const { response, text } = await responseText({
     method: "GET",
-    path: "/assets/app.js",
+    path: firstLiveUiAssetPath(shell.text),
   });
 
   expect(response.status).toBe(200);
   expect(response.headers.get("content-type")).toBe("application/javascript; charset=utf-8");
   expect(text).toContain("situ-live-report");
+});
+
+test("returns 405 and Allow for unsupported live UI asset methods", async () => {
+  const shell = await responseText({
+    method: "GET",
+    path: "/",
+  });
+  const assetPath = firstLiveUiAssetPath(shell.text);
+  const { response, text } = await responseText({
+    method: "POST",
+    path: assetPath,
+  });
+
+  expect(response.status).toBe(405);
+  expect(response.headers.get("allow")).toBe("GET");
+  expect(JSON.parse(text)).toEqual({
+    error: {
+      kind: ErrorKind.Validation,
+      message: "HTTP method is not supported for this path.",
+      details: {
+        method: "POST",
+        path: assetPath,
+        allowedMethods: ["GET"],
+      },
+    },
+  });
+  expect(text.endsWith("\n")).toBe(true);
 });
 
 test("returns 405 and Allow for unsupported live UI methods", async () => {

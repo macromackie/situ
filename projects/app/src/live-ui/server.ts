@@ -1,35 +1,37 @@
 import { existsSync, realpathSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { readFile } from "node:fs/promises";
+import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { InternalError } from "@situ/errors";
+import { InternalError, NotFoundError } from "@situ/errors";
 
-const liveUiClientFileName = "app.js";
-const liveUiClientPath = `/assets/${liveUiClientFileName}`;
+const liveUiAssetPathPrefix = "/assets/";
 const projectRoutePattern = /^\/projects\/[^/]+\/?$/;
 
 const here = dirname(fileURLToPath(import.meta.url));
-const clientEntryPoint = join(here, "main.tsx");
+const appRoot = join(here, "..", "..");
+const sourceBuildDirectory = join(appRoot, "dist", "live-ui");
+const viteConfigPath = join(appRoot, "vite.live-ui.config.ts");
 // A `bun build --compile` standalone binary keeps its source in an embedded
-// virtual filesystem (paths under `$bunfs`) that `Bun.build` cannot read. Such a
-// binary serves the bundle built at release time instead of building on request.
+// virtual filesystem (paths under `$bunfs`). Such a binary serves the Vite
+// output built at release time instead of invoking Vite at request time.
 const runningAsStandaloneBinary = here.includes("$bunfs");
 
-let clientScriptPromise: Promise<string> | undefined;
+let buildDirectoryPromise: Promise<string> | undefined;
 
 export function isLiveUiPath(pathname: string): boolean {
-  return pathname === "/" || projectRoutePattern.test(pathname) || pathname === liveUiClientPath;
+  return isLiveUiShellPath(pathname) || isLiveUiAssetPath(pathname);
 }
 
 export async function handleLiveUiGetRequest(input: {
   readonly pathname: string;
 }): Promise<Response> {
-  if (input.pathname === "/" || projectRoutePattern.test(input.pathname)) {
-    return htmlResponse(renderLiveUiShell());
+  if (isLiveUiShellPath(input.pathname)) {
+    return htmlResponse(await readLiveUiShell());
   }
 
-  if (input.pathname === liveUiClientPath) {
-    return javascriptResponse(await buildLiveUiClientScript());
+  if (isLiveUiAssetPath(input.pathname)) {
+    return await liveUiAssetResponse({ pathname: input.pathname });
   }
 
   throw new InternalError({
@@ -38,76 +40,83 @@ export async function handleLiveUiGetRequest(input: {
   });
 }
 
-function renderLiveUiShell(): string {
-  return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>situ live report</title>
-  </head>
-  <body>
-    <div id="root">
-      <main style="font-family: system-ui, sans-serif; padding: 32px;">
-        Syncing local Situ records...
-      </main>
-    </div>
-    <script type="module" src="${liveUiClientPath}"></script>
-  </body>
-</html>
-`;
+function isLiveUiShellPath(pathname: string): boolean {
+  return pathname === "/" || projectRoutePattern.test(pathname);
 }
 
-async function buildLiveUiClientScript(): Promise<string> {
-  clientScriptPromise ??= buildClientScript();
-  return await clientScriptPromise;
+function isLiveUiAssetPath(pathname: string): boolean {
+  return pathname.startsWith(liveUiAssetPathPrefix);
 }
 
-async function buildClientScript(): Promise<string> {
-  // Compiled binary: serve the bundle built at release time and shipped beside
-  // the binary at `<install>/versions/<v>/assets/app.js` (see ADR 0098).
-  if (runningAsStandaloneBinary) {
-    const prebuilt = join(
-      dirname(realpathSync(process.execPath)),
-      "..",
-      "assets",
-      liveUiClientFileName,
-    );
-    if (!existsSync(prebuilt)) {
-      throw new InternalError({
-        message: "Live UI browser bundle is missing from the install.",
-        details: { prebuilt },
-      });
-    }
-    return await Bun.file(prebuilt).text();
+async function readLiveUiShell(): Promise<string> {
+  const buildDirectory = await getLiveUiBuildDirectory();
+  return await readFile(join(buildDirectory, "index.html"), "utf8");
+}
+
+async function liveUiAssetResponse(input: { readonly pathname: string }): Promise<Response> {
+  const buildDirectory = await getLiveUiBuildDirectory();
+  const assetsDirectory = resolve(buildDirectory, "assets");
+  const assetPath = resolve(buildDirectory, `.${input.pathname}`);
+
+  if (!isPathInsideDirectory({ path: assetPath, directory: assetsDirectory })) {
+    throw new NotFoundError({
+      message: "HTTP route was not found.",
+      details: { path: input.pathname },
+    });
   }
 
-  // Running from source: build the browser bundle on demand so it stays fresh.
-  const result = await Bun.build({
-    entrypoints: [clientEntryPoint],
-    format: "esm",
-    target: "browser",
-    minify: false,
-    sourcemap: "none",
+  if (!existsSync(assetPath)) {
+    throw new NotFoundError({
+      message: "HTTP route was not found.",
+      details: { path: input.pathname },
+    });
+  }
+
+  return new Response(await readFile(assetPath), {
+    headers: {
+      "cache-control": "no-store",
+      "content-type": contentTypeForAssetPath(assetPath),
+    },
   });
+}
 
-  if (!result.success) {
+function isPathInsideDirectory(input: {
+  readonly path: string;
+  readonly directory: string;
+}): boolean {
+  return input.path === input.directory || input.path.startsWith(`${input.directory}${sep}`);
+}
+
+async function getLiveUiBuildDirectory(): Promise<string> {
+  buildDirectoryPromise ??= resolveLiveUiBuildDirectory();
+  return await buildDirectoryPromise;
+}
+
+async function resolveLiveUiBuildDirectory(): Promise<string> {
+  const buildDirectory = runningAsStandaloneBinary
+    ? join(dirname(realpathSync(process.execPath)), "..", "assets", "live-ui")
+    : sourceBuildDirectory;
+
+  if (existsSync(join(buildDirectory, "index.html"))) {
+    return buildDirectory;
+  }
+
+  if (runningAsStandaloneBinary) {
     throw new InternalError({
-      message: "Live UI browser bundle could not be built.",
-      details: {
-        logs: result.logs.map((log) => log.message),
-      },
+      message: "Live UI build is missing from the install.",
+      details: { buildDirectory },
     });
   }
 
-  const output = result.outputs[0];
-  if (output === undefined) {
-    throw new InternalError({
-      message: "Live UI browser bundle did not produce output.",
-    });
-  }
+  await buildSourceLiveUi();
+  return buildDirectory;
+}
 
-  return await output.text();
+async function buildSourceLiveUi(): Promise<void> {
+  const vite = await import("vite");
+  await vite.build({
+    configFile: viteConfigPath,
+  });
 }
 
 function htmlResponse(body: string): Response {
@@ -119,11 +128,19 @@ function htmlResponse(body: string): Response {
   });
 }
 
-function javascriptResponse(body: string): Response {
-  return new Response(body, {
-    headers: {
-      "cache-control": "no-store",
-      "content-type": "application/javascript; charset=utf-8",
-    },
-  });
+function contentTypeForAssetPath(path: string): string {
+  switch (extname(path)) {
+    case ".css":
+      return "text/css; charset=utf-8";
+    case ".js":
+      return "application/javascript; charset=utf-8";
+    case ".json":
+      return "application/json; charset=utf-8";
+    case ".svg":
+      return "image/svg+xml";
+    case ".woff2":
+      return "font/woff2";
+    default:
+      return "application/octet-stream";
+  }
 }

@@ -1,7 +1,8 @@
 import { Replicache } from "replicache";
 import { useSubscribe } from "replicache-react";
-import React, {
+import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -9,6 +10,14 @@ import React, {
   type ReactNode,
 } from "react";
 import { createRoot } from "react-dom/client";
+import {
+  Outlet,
+  RouterProvider,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  useNavigate,
+} from "@tanstack/react-router";
 
 import type { ArtifactRecord } from "@situ/artifacts";
 import type { BaselineRecord } from "@situ/baselines";
@@ -67,6 +76,8 @@ const replicacheName = "situ-live-report";
 
 const ReplicacheContext = createContext<Replicache | null>(null);
 const SyncContext = createContext(false);
+
+type NavigateToProject = (projectId: string | undefined) => void;
 
 function ReplicacheProvider(props: { readonly children: ReactNode }) {
   const [rep, setRep] = useState<Replicache | null>(null);
@@ -191,26 +202,35 @@ function useLiveRecords(): LiveRecords {
   };
 }
 
-function LiveReportApp() {
+function LiveReportApp(props: {
+  readonly requestedProjectId?: string;
+  readonly navigateToProject: NavigateToProject;
+}) {
   const synced = useSynced();
   const records = useLiveRecords();
-  const requestedProjectId = readRequestedProjectId();
   const model = useMemo(
-    () => buildLiveProjectModel({ records, requestedProjectId }),
-    [records, requestedProjectId],
+    () => buildLiveProjectModel({ records, requestedProjectId: props.requestedProjectId }),
+    [records, props.requestedProjectId],
   );
 
-  return <LiveReportSurface model={model} synced={synced} />;
+  return (
+    <LiveReportSurface model={model} synced={synced} navigateToProject={props.navigateToProject} />
+  );
 }
 
 export function LiveReportSurface(props: {
   readonly model: LiveProjectModel;
   readonly synced: boolean;
+  readonly navigateToProject?: NavigateToProject;
 }) {
   return (
     <div className="live-shell">
       <StyleRoot />
-      <LiveTopbar model={props.model} synced={props.synced} />
+      <LiveTopbar
+        model={props.model}
+        synced={props.synced}
+        navigateToProject={props.navigateToProject}
+      />
       <main className="live-doc">
         {props.model.kind === "empty" ? (
           <EmptyProjectView model={props.model} />
@@ -222,19 +242,18 @@ export function LiveReportSurface(props: {
   );
 }
 
-function readRequestedProjectId(): string | undefined {
-  const pathMatch = /^\/projects\/([^/]+)\/?$/.exec(window.location.pathname);
-  if (pathMatch?.[1] !== undefined) {
-    return decodeURIComponent(pathMatch[1]);
-  }
-
+function readLegacyProjectSearchParam(): string | undefined {
   const projectId = new URLSearchParams(window.location.search).get("project");
   return projectId === null || projectId.trim() === "" ? undefined : projectId;
 }
 
 // ── Topbar ───────────────────────────────────────────────────────────────────
 
-export function LiveTopbar(props: { readonly model: LiveProjectModel; readonly synced: boolean }) {
+export function LiveTopbar(props: {
+  readonly model: LiveProjectModel;
+  readonly synced: boolean;
+  readonly navigateToProject?: NavigateToProject;
+}) {
   const projects =
     props.model.activeProjects.length > 0 ? props.model.activeProjects : props.model.allProjects;
 
@@ -270,7 +289,7 @@ export function LiveTopbar(props: { readonly model: LiveProjectModel; readonly s
             value={props.model.kind === "project" ? props.model.project.id : ""}
             onChange={(event) => {
               const value = event.currentTarget.value;
-              window.location.href = value === "" ? "/" : `/projects/${encodeURIComponent(value)}`;
+              props.navigateToProject?.(value === "" ? undefined : value);
             }}
             aria-label="Project"
           >
@@ -2283,14 +2302,73 @@ const liveCss = `
 }
 `;
 
-// ── Entry point ───────────────────────────────────────────────────────────────
+// ── Router and entry point ────────────────────────────────────────────────────
+
+function LiveRouteRoot() {
+  return <Outlet />;
+}
+
+function LiveIndexRoute() {
+  return <LiveRoutedReport requestedProjectId={readLegacyProjectSearchParam()} />;
+}
+
+function LiveProjectRoute() {
+  const { projectId } = projectRoute.useParams();
+  return <LiveRoutedReport requestedProjectId={projectId} />;
+}
+
+function LiveRoutedReport(props: { readonly requestedProjectId?: string }) {
+  const navigate = useNavigate();
+  const navigateToProject = useCallback(
+    (projectId: string | undefined): void => {
+      void navigate(
+        projectId === undefined
+          ? { to: "/" }
+          : { to: "/projects/$projectId", params: { projectId } },
+      );
+    },
+    [navigate],
+  );
+
+  return (
+    <LiveReportApp
+      requestedProjectId={props.requestedProjectId}
+      navigateToProject={navigateToProject}
+    />
+  );
+}
+
+const rootRoute = createRootRoute({
+  component: LiveRouteRoot,
+});
+
+const indexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/",
+  component: LiveIndexRoute,
+});
+
+const projectRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/projects/$projectId",
+  component: LiveProjectRoute,
+});
+
+const routeTree = rootRoute.addChildren([indexRoute, projectRoute]);
+const router = createRouter({ routeTree });
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router;
+  }
+}
 
 const rootElement = typeof document === "undefined" ? null : document.getElementById("root");
 
 if (rootElement !== null) {
   createRoot(rootElement).render(
     <ReplicacheProvider>
-      <LiveReportApp />
+      <RouterProvider router={router} />
     </ReplicacheProvider>,
   );
 }
