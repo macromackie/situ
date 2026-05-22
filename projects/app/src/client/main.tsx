@@ -691,6 +691,8 @@ type ChartRowData = {
 type ChartMetric = {
   readonly value: number;
   readonly direction: "higher_is_better" | "lower_is_better";
+  readonly label: string;
+  readonly unit?: string;
 };
 
 function extractFirstMetricFact(detail?: LiveNodeDetailRecord): ChartMetric | undefined {
@@ -704,10 +706,35 @@ function extractFirstMetricFact(detail?: LiveNodeDetailRecord): ChartMetric | un
       return {
         value: n,
         direction: fact.direction ?? "higher_is_better",
+        label: metricDisplayLabel(fact.label || fact.metricName || "Metric"),
+        unit: fact.unit,
       };
     }
   }
   return undefined;
+}
+
+function metricDisplayLabel(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return "Metric";
+  if (!trimmed.includes("_")) return trimmed;
+  return titleCase(trimmed);
+}
+
+function metricAxisLabel(input: {
+  readonly label: string;
+  readonly unit?: string;
+  readonly direction: ChartMetric["direction"];
+}): string {
+  const directionLabel =
+    input.direction === "lower_is_better" ? "lower is better" : "higher is better";
+  const unit = input.unit?.trim();
+  const metricLabel =
+    unit !== undefined && unit.length > 0 && !input.label.toLowerCase().includes(unit.toLowerCase())
+      ? `${input.label} ${unit}`
+      : input.label;
+
+  return `${metricLabel} (${directionLabel})`;
 }
 
 function formatAxisValue(v: number): string {
@@ -723,18 +750,24 @@ function buildChartData(
 ): {
   data: ChartRowData[];
   frontierKeys: ReadonlySet<string>;
-  hasMetrics: boolean;
   metricCount: number;
+  metricLabel: string;
 } {
   const rawMetrics = nodes.map((n) => extractFirstMetricFact(details.get(n.nodeKey)));
   const rawValues = rawMetrics.map((metric) => metric?.value ?? null);
   const metricCount = rawMetrics.filter(
     (metric): metric is ChartMetric => metric !== undefined,
   ).length;
-  const hasMetrics = metricCount > 1;
+  const hasMetrics = metricCount > 0;
   const direction =
     rawMetrics.find((metric): metric is ChartMetric => metric !== undefined)?.direction ??
     "higher_is_better";
+  const metric = rawMetrics.find((candidate): candidate is ChartMetric => candidate !== undefined);
+  const metricLabel = metricAxisLabel({
+    label: metric?.label ?? "Metric",
+    unit: metric?.unit,
+    direction,
+  });
 
   const frontierKeys = new Set<string>();
   if (hasMetrics) {
@@ -767,7 +800,7 @@ function buildChartData(
     };
   });
 
-  return { data, frontierKeys, hasMetrics, metricCount };
+  return { data, frontierKeys, metricCount, metricLabel };
 }
 
 type RunMapDotProps = {
@@ -781,21 +814,12 @@ type RunMapDotProps = {
 
 function RunMapDot({ cx, cy, payload, frontierKeys, selectedKey, onSelect }: RunMapDotProps) {
   const isFrontier = frontierKeys.has(payload.nodeKey);
-  const isFinished = !isFrontier && (payload.tone === "good" || payload.tone === "done");
   const isSelected = payload.nodeKey === selectedKey;
 
-  const r = isFrontier ? 6 : isFinished ? 4 : 3.5;
-  const fill = isFrontier
-    ? "var(--accent)"
-    : isFinished
-      ? "var(--muted)"
-      : payload.tone === "watch"
-        ? "var(--accent-2)"
-        : payload.tone === "blocked"
-          ? "var(--bad)"
-          : "var(--muted)";
-  const opacity = isFrontier ? 1 : isFinished ? 0.42 : 0.34;
-  const shortTitle = payload.title.length > 24 ? `${payload.title.slice(0, 22)}…` : payload.title;
+  const r = isFrontier ? 6 : 3.5;
+  const fill = isFrontier ? "var(--accent)" : "var(--muted)";
+  const opacity = isFrontier ? 0.95 : 0.28;
+  const shortTitle = payload.title.length > 36 ? `${payload.title.slice(0, 34)}…` : payload.title;
 
   return (
     <g
@@ -834,11 +858,11 @@ function RunMapDot({ cx, cy, payload, frontierKeys, selectedKey, onSelect }: Run
         <text
           x={cx + 5}
           y={cy - (r + 4)}
-          transform={`rotate(-30, ${cx}, ${cy})`}
-          fontSize={9.5}
+          transform={`rotate(-28, ${cx}, ${cy})`}
+          fontSize={10}
           fontWeight={500}
           fontFamily="var(--sans)"
-          fill={isSelected ? "var(--accent)" : "var(--ink-soft)"}
+          fill={isSelected ? "var(--accent)" : "color-mix(in srgb, var(--accent) 72%, var(--ink))"}
           textAnchor="start"
           style={{ pointerEvents: "none" }}
         >
@@ -895,6 +919,9 @@ function RunMapTooltip(props: { active?: boolean; payload?: readonly TooltipEntr
   return (
     <div className="map-tooltip">
       <span className="map-tooltip-title">{row.title}</span>
+      <span className="map-tooltip-state">
+        {row.frontierY !== null ? "Kept improvement" : "Discarded"}
+      </span>
       <span className="map-tooltip-metric">{formatAxisValue(row.y)}</span>
     </div>
   );
@@ -904,9 +931,7 @@ function RunMapSection(props: {
   readonly model: Extract<ProjectOverviewModel, { readonly kind: "project" }>;
 }) {
   const { nodes, focus, detailsByNodeKey } = props.model.presentation.map;
-  const [selectedKey, setSelectedKey] = useState<string | undefined>(() =>
-    defaultSelectedNodeKey(nodes, focus?.primaryNodeKey),
-  );
+  const [selectedKey, setSelectedKey] = useState<string | undefined>(undefined);
 
   const activeKey =
     selectedKey !== undefined && nodes.some((n) => n.nodeKey === selectedKey)
@@ -956,12 +981,13 @@ function RunMapChart(props: {
   readonly selectedKey?: string;
   readonly onSelect: (key: string) => void;
 }) {
-  const { data, frontierKeys, hasMetrics, metricCount } = buildChartData(
+  const { data, frontierKeys, metricCount, metricLabel } = buildChartData(
     props.nodes,
     props.details,
   );
   const n = props.nodes.length;
-  const title = `${n} experiment${n !== 1 ? "s" : ""} · ${frontierKeys.size} frontier`;
+  const keptLabel = frontierKeys.size === 1 ? "Kept Improvement" : "Kept Improvements";
+  const title = `Autoresearch Progress: ${n} Experiment${n !== 1 ? "s" : ""}, ${frontierKeys.size} ${keptLabel}`;
 
   return (
     <div className="run-map-chart-wrap">
@@ -970,15 +996,15 @@ function RunMapChart(props: {
         <span className="map-chart-legend" aria-hidden="true">
           <span className="map-legend-item">
             <svg width={10} height={10}>
-              <circle cx={5} cy={5} r={5} fill="var(--accent)" opacity={0.9} />
+              <circle cx={5} cy={5} r={3.5} fill="var(--muted)" opacity={0.3} />
             </svg>
-            Frontier
+            Discarded
           </span>
           <span className="map-legend-item">
             <svg width={10} height={10}>
-              <circle cx={5} cy={5} r={4} fill="var(--muted)" opacity={0.45} />
+              <circle cx={5} cy={5} r={5} fill="var(--accent)" opacity={0.9} />
             </svg>
-            Finished
+            Kept
           </span>
           <span className="map-legend-item">
             <svg width={20} height={10}>
@@ -1002,9 +1028,9 @@ function RunMapChart(props: {
           <span>Publish numeric facts in live details to draw the run map.</span>
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={340}>
-          <ComposedChart data={data} margin={{ top: 72, right: 28, bottom: 30, left: 12 }}>
-            <CartesianGrid stroke="var(--rule-soft)" strokeDasharray="2 4" vertical={false} />
+        <ResponsiveContainer width="100%" height={460}>
+          <ComposedChart data={data} margin={{ top: 92, right: 44, bottom: 48, left: 22 }}>
+            <CartesianGrid stroke="var(--rule-soft)" strokeDasharray="2 4" vertical />
             <XAxis
               dataKey="index"
               type="number"
@@ -1017,7 +1043,7 @@ function RunMapChart(props: {
                   fontSize: 10,
                   fill: "var(--muted)",
                   fontFamily: "var(--sans)",
-                  letterSpacing: "0.04em",
+                  letterSpacing: "0",
                 },
               }}
               tick={{ fontSize: 10, fill: "var(--muted)", fontFamily: "var(--sans)" }}
@@ -1032,10 +1058,21 @@ function RunMapChart(props: {
               tickFormatter={formatAxisValue}
               tick={{ fontSize: 10, fill: "var(--muted)", fontFamily: "var(--mono)" }}
               tickLine={false}
-              axisLine={false}
-              width={48}
-              tickMargin={8}
-              hide={!hasMetrics}
+              axisLine={{ stroke: "var(--rule)" }}
+              width={68}
+              tickMargin={10}
+              label={{
+                value: metricLabel,
+                angle: -90,
+                position: "insideLeft",
+                offset: -2,
+                style: {
+                  fontSize: 11,
+                  fill: "var(--ink-soft)",
+                  fontFamily: "var(--sans)",
+                  letterSpacing: "0",
+                },
+              }}
             />
             <Tooltip
               content={(p) => (
@@ -1070,20 +1107,6 @@ function RunMapChart(props: {
       )}
     </div>
   );
-}
-
-function defaultSelectedNodeKey(
-  nodes: readonly CurrentMapNode[],
-  focusedNodeKey?: string,
-): string | undefined {
-  if (focusedNodeKey !== undefined && nodes.some((n) => n.nodeKey === focusedNodeKey)) {
-    return focusedNodeKey;
-  }
-  return (
-    nodes.find((n) => n.tone === "blocked") ??
-    nodes.find((n) => n.tone === "watch") ??
-    nodes.at(-1)
-  )?.nodeKey;
 }
 
 function NodeDetailSidebar(props: {
@@ -2071,6 +2094,20 @@ const liveCss = `
   border-top: 1px solid var(--rule);
 }
 
+@media (min-width: 1120px) {
+  .run-map-section {
+    width: min(1240px, calc(100vw - 96px));
+    margin-left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .run-map-head {
+    max-width: 880px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
 .run-map-head {
   display: flex;
   align-items: baseline;
@@ -2106,9 +2143,9 @@ const liveCss = `
 .run-map-chart-wrap {
   background: white;
   border: 1px solid var(--rule);
-  border-radius: 8px;
-  padding: 4px 8px 6px;
-  box-shadow: 0 1px 2px rgba(22, 24, 29, 0.03);
+  border-radius: 6px;
+  padding: 8px 12px 10px;
+  box-shadow: none;
 }
 
 /* Recharts clips a Line's dots to the plot area; our dot layer renders as a
@@ -2129,22 +2166,26 @@ const liveCss = `
 }
 
 .map-chart-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 12px 0;
+  padding: 8px 8px 0;
   gap: 12px;
 }
 
 .map-chart-title {
+  grid-column: 2;
   font-family: var(--sans);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--ink-soft);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .map-chart-legend {
+  grid-column: 3;
+  justify-self: end;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -2158,6 +2199,29 @@ const liveCss = `
   font-family: var(--sans);
   font-size: 9px;
   color: var(--muted);
+}
+
+@media (max-width: 760px) {
+  .map-chart-header {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .map-chart-title,
+  .map-chart-legend {
+    grid-column: 1;
+    justify-self: start;
+    text-align: left;
+  }
+
+  .map-chart-title {
+    font-size: 14px;
+  }
+
+  .map-chart-legend {
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
 }
 
 .map-chart-diagnostic {
@@ -2197,8 +2261,14 @@ const liveCss = `
 .map-tooltip-title {
   font-family: var(--sans);
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--ink);
+}
+
+.map-tooltip-state {
+  font-family: var(--sans);
+  font-size: 9px;
+  color: var(--muted);
 }
 
 .map-tooltip-metric {

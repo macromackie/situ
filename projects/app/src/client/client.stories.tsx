@@ -724,6 +724,10 @@ const progressKeeps: readonly ProgressKeep[] = [
 
 const progressKeepByIndex = new Map(progressKeeps.map((keep) => [keep.index, keep]));
 
+function progressTimestamp(index: number, offsetSeconds = 0): string {
+  return new Date(Date.UTC(2026, 4, 20, 17, 0, index + offsetSeconds)).toISOString();
+}
+
 function progressDiscardedValue(index: number): number {
   const previousBest =
     [...progressKeeps].reverse().find((keep) => keep.index < index)?.value ??
@@ -754,10 +758,11 @@ const autoresearchProgressModel = (() => {
     title: spec.title,
     summary: `Validation BPB ${spec.value.toFixed(4)}.`,
     tone: spec.tone,
+    occurredAt: progressTimestamp(index),
     refs: [],
     visibility: "visible" as const,
     authoredBy: manager,
-    metadata: metadata(`2026-05-20T17:${String(index % 60).padStart(2, "0")}:00.000Z`),
+    metadata: metadata(progressTimestamp(index)),
   }));
 
   const details: LiveNodeDetailRecord[] = specs.map((spec, index) => ({
@@ -778,7 +783,7 @@ const autoresearchProgressModel = (() => {
     ],
     refs: [],
     authoredBy: manager,
-    metadata: metadata(`2026-05-20T17:${String(index % 60).padStart(2, "0")}:01.000Z`),
+    metadata: metadata(progressTimestamp(index, 1)),
   }));
 
   const records: ClientRecords = {
@@ -860,7 +865,7 @@ const autoresearchProgressModel = (() => {
       tone: "good" as const,
       visibility: "visible" as const,
       authoredBy: manager,
-      metadata: metadata(`2026-05-20T17:${String((index + 30) % 60).padStart(2, "0")}:02.000Z`),
+      metadata: metadata(progressTimestamp(keep.index, 2)),
     })),
     liveFocuses: [
       liveFocusRecord({
