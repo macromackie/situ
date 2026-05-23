@@ -319,7 +319,7 @@ function buildCodexWorkspaceManagerPrompt(input: {
     "5. Create git worktree branches under `$SITU_EVAL_WORKTREES_DIR` and store `baseRef`, `branchName`, and `worktreePath` on experiments.",
     "6. After the baseline and candidate records exist, strongly prefer parallel native subagents for independent candidate work.",
     "7. Record measurements, status, reviews/comments/reports, and artifacts through `situ`.",
-    "8. Publish each measured baseline and candidate to the live run map with `situ live attempts publish` so the dashboard has authored chart state.",
+    "8. Publish each baseline and candidate to the live run map when it starts with `situ live attempts start`; do not fake metric values. When measurement finishes, update the same node key with `situ live attempts publish` so the dashboard has authored live state and measured chart points.",
     "9. Surface progress with `situ status --json` and `situ verify --json`.",
     "",
     "Baseline requirements:",
@@ -416,7 +416,8 @@ function buildCodexWorkspaceManagerPrompt(input: {
     "- situ tasks create ...",
     "- situ experiments create ... --base-ref <git-ref> --branch-name <branch> --worktree-path <path> ...",
     "- situ measurements create --experiment-id <experiment-id> --revision-number <n> --metric-name <name> --value <value> --summary <markdown> --actor-kind local_agent --actor-id <actor-id>",
-    `- situ live attempts publish --project-id ${input.workspaceCase.projectId} --authored-by-kind local_agent --authored-by-id manager --node-key <key> --kind branch --title <title> --summary <summary> --tone <neutral|good|watch|blocked|done> --body <markdown> --metric-label dev_accuracy --metric-name dev_accuracy --metric-value <value> --metric-direction higher_is_better --experiment-id <experiment-id> --measurement-id <measurement-id> --from-node-key <previous-key> --focus-mode node`,
+    `- situ live attempts start --project-id ${input.workspaceCase.projectId} --authored-by-kind local_agent --authored-by-id manager --node-key <key> --kind branch --title <what-is-being-tried> --summary <summary> --tone neutral --body <markdown> --experiment-id <experiment-id> --from-node-key <previous-key> --focus-mode node`,
+    `- situ live attempts publish --project-id ${input.workspaceCase.projectId} --authored-by-kind local_agent --authored-by-id manager --node-key <same-key> --kind branch --title <what-was-tried> --summary <summary> --tone <neutral|good|watch|blocked|done> --body <markdown> --metric-label dev_accuracy --metric-name dev_accuracy --metric-value <value> --metric-direction higher_is_better --experiment-id <experiment-id> --measurement-id <measurement-id> --from-node-key <previous-key> --focus-mode node`,
     `- situ reports create --project-id ${input.workspaceCase.projectId} --target-kind project --target-id ${input.workspaceCase.projectId} --title "Checkpoint report" --body <markdown> --generated-by-kind local_agent --generated-by-id manager`,
     `- situ reports instructions --project-id ${input.workspaceCase.projectId}`,
     `- situ reports preview --project-id ${input.workspaceCase.projectId} --draft <draft.mdx>`,
@@ -659,7 +660,7 @@ function judgeRubricLines(workspaceCase: WorkspaceAutoresearchCase): readonly st
       "- 0.10: The synthesis branch used `git cherry-pick -x` to bring useful commits from other candidate branches.",
       "- 0.10: Protected files stayed unchanged and measurements make the combined result understandable.",
       "- Overfit discipline matters: penalize accepted dev-set wins that show a suspicious held-out/final gap or appear to train on protected/dev labels without a clear caveat.",
-      "- Live map records should cover measured candidates with plottable metric facts; treat missing live map state as an evidence-clarity weakness.",
+      "- Live map records should show started candidates as soon as work begins and cover measured candidates with plottable metric facts; treat missing live map state as an evidence-clarity weakness.",
       "- 0.20: The manager authored a final research report via `situ reports submit` (MDX through `@situ/reports-ui` components) AND the rendered HTML reads as a research artifact: editorial layout, captioned figures, baseline + experiments + lineage all surfaced, prose that summarizes what was learned. Skip this credit if no authored report was submitted or the rendered output is a generic dump.",
     ];
   }
@@ -672,7 +673,7 @@ function judgeRubricLines(workspaceCase: WorkspaceAutoresearchCase): readonly st
     "- 0.10: Independent candidate work shows native subagent/worker evidence, or a concrete direct-work fallback explanation.",
     "- 0.10: Protected files stayed unchanged and held-out data was respected.",
     "- Overfit discipline matters: penalize accepted dev-set wins that show a suspicious held-out/final gap or appear to train on protected/dev labels without a clear caveat.",
-    "- 0.10: The evidence makes partial progress understandable, including live map records with plottable metric facts for measured candidates, even if the external timeout cut off the run.",
+    "- 0.10: The evidence makes partial progress understandable, including started live map records for in-progress candidates and plottable metric facts for measured candidates, even if the external timeout cut off the run.",
     "- 0.25: The manager authored a final research report via `situ reports submit` (MDX through `@situ/reports-ui` components) AND the rendered HTML reads as a research artifact: editorial layout, captioned figures, baseline + experiments + outcomes all surfaced, prose that summarizes what was learned. Skip this credit if no authored report was submitted or the rendered output is a generic dump.",
   ];
 }

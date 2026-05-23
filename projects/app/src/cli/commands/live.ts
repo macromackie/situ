@@ -28,6 +28,7 @@ import {
   createLiveSignalAction,
   listLiveRecordsForProjectAction,
   publishLiveAttemptAction,
+  startLiveAttemptAction,
 } from "../../actions/index.js";
 import { openAppDatabase } from "../../db/index.js";
 import {
@@ -102,6 +103,15 @@ export function runLiveCommand(input: { readonly invocation: SituCliInvocation }
           });
         }
 
+        case "attempts-start": {
+          const result = startLiveAttemptAction({ context, ...parsedCommand });
+          return formatDataResult({
+            invocation: input.invocation,
+            data: result,
+            text: `Started live attempt ${result.node.id}`,
+          });
+        }
+
         case "list": {
           const records = listLiveRecordsForProjectAction({
             context,
@@ -122,6 +132,20 @@ type SharedSetFields = {
   readonly projectId: SituId<"project">;
   readonly authoredBy: ActorRef;
   readonly now?: IsoTimestamp;
+};
+
+type ParsedAttemptEdge = {
+  readonly edgeKey?: string;
+  readonly fromNodeKey: string;
+  readonly relation: LiveMapEdgeRelation;
+  readonly tone?: LiveEdgeTone;
+  readonly visibility?: LiveVisibility;
+};
+
+type ParsedAttemptFocus = {
+  readonly mode: LiveFocusMode;
+  readonly summary?: string;
+  readonly relatedNodeKeys?: readonly string[];
 };
 
 type ParsedLiveCommand =
@@ -175,6 +199,20 @@ type ParsedLiveCommand =
       readonly refs: readonly TargetRef[];
     })
   | (SharedSetFields & {
+      readonly subcommand: "attempts-start";
+      readonly nodeKey: string;
+      readonly kind: LiveMapNodeKind;
+      readonly title: string;
+      readonly summary: string;
+      readonly tone: LiveTone;
+      readonly occurredAt?: IsoTimestamp;
+      readonly visibility?: LiveVisibility;
+      readonly bodyMarkdown: string;
+      readonly refs: readonly TargetRef[];
+      readonly edge?: ParsedAttemptEdge;
+      readonly focus?: ParsedAttemptFocus;
+    })
+  | (SharedSetFields & {
       readonly subcommand: "attempts-publish";
       readonly nodeKey: string;
       readonly kind: LiveMapNodeKind;
@@ -186,18 +224,8 @@ type ParsedLiveCommand =
       readonly bodyMarkdown: string;
       readonly facts: readonly LiveNodeFact[];
       readonly refs: readonly TargetRef[];
-      readonly edge?: {
-        readonly edgeKey?: string;
-        readonly fromNodeKey: string;
-        readonly relation: LiveMapEdgeRelation;
-        readonly tone?: LiveEdgeTone;
-        readonly visibility?: LiveVisibility;
-      };
-      readonly focus?: {
-        readonly mode: LiveFocusMode;
-        readonly summary?: string;
-        readonly relatedNodeKeys?: readonly string[];
-      };
+      readonly edge?: ParsedAttemptEdge;
+      readonly focus?: ParsedAttemptFocus;
     })
   | {
       readonly subcommand: "list";
@@ -355,6 +383,61 @@ const liveDetailSetCommand = defineCommandSpec({
   }),
 });
 
+const liveAttemptStartCommand = defineCommandSpec({
+  command: "live attempts start",
+  positionals: noPositionals(),
+  options: [
+    ...sharedSetOptions,
+    valueOption({ key: "nodeKey", flag: "--node-key", required: true }),
+    valueOption({ key: "kind", flag: "--kind", required: true }),
+    valueOption({ key: "title", flag: "--title", required: true }),
+    valueOption({ key: "summary", flag: "--summary", required: true }),
+    valueOption({ key: "tone", flag: "--tone", required: true }),
+    valueOption({ key: "bodyMarkdown", flag: "--body", required: true }),
+    valueOption({ key: "occurredAt", flag: "--occurred-at" }),
+    valueOption({ key: "refsJson", flag: "--refs-json" }),
+    valueOption({ key: "experimentId", flag: "--experiment-id" }),
+    valueOption({ key: "baselineId", flag: "--baseline-id" }),
+    valueOption({ key: "measurementId", flag: "--measurement-id" }),
+    valueOption({ key: "fromNodeKey", flag: "--from-node-key" }),
+    valueOption({ key: "edgeKey", flag: "--edge-key" }),
+    valueOption({ key: "edgeRelation", flag: "--edge-relation" }),
+    valueOption({ key: "edgeTone", flag: "--edge-tone" }),
+    valueOption({ key: "edgeVisibility", flag: "--edge-visibility" }),
+    valueOption({ key: "focusMode", flag: "--focus-mode" }),
+    valueOption({ key: "focusSummary", flag: "--focus-summary" }),
+    valueOption({ key: "relatedNodeKeysJson", flag: "--related-node-keys-json" }),
+    valueOption({ key: "visibility", flag: "--visibility" }),
+  ],
+  schema: v.object({
+    projectId: v.string(),
+    authoredByKind: v.string(),
+    authoredById: v.string(),
+    authoredByDisplayName: v.optional(v.string()),
+    now: v.optional(v.string()),
+    nodeKey: v.string(),
+    kind: v.string(),
+    title: v.string(),
+    summary: v.string(),
+    tone: v.string(),
+    bodyMarkdown: v.string(),
+    occurredAt: v.optional(v.string()),
+    refsJson: v.optional(v.string()),
+    experimentId: v.optional(v.string()),
+    baselineId: v.optional(v.string()),
+    measurementId: v.optional(v.string()),
+    fromNodeKey: v.optional(v.string()),
+    edgeKey: v.optional(v.string()),
+    edgeRelation: v.optional(v.string()),
+    edgeTone: v.optional(v.string()),
+    edgeVisibility: v.optional(v.string()),
+    focusMode: v.optional(v.string()),
+    focusSummary: v.optional(v.string()),
+    relatedNodeKeysJson: v.optional(v.string()),
+    visibility: v.optional(v.string()),
+  }),
+});
+
 const liveAttemptPublishCommand = defineCommandSpec({
   command: "live attempts publish",
   positionals: noPositionals(),
@@ -454,6 +537,10 @@ function parseLiveCommand(invocation: SituCliInvocation): ParsedLiveCommand {
 
   if (section === "attempts" && action === "publish") {
     return parseAttemptPublish({ invocation, args });
+  }
+
+  if (section === "attempts" && action === "start") {
+    return parseAttemptStart({ invocation, args });
   }
 
   if (action !== "set") {
@@ -652,6 +739,59 @@ function parseDetailSet(input: {
   };
 }
 
+function parseAttemptStart(input: {
+  readonly invocation: SituCliInvocation;
+  readonly args: readonly string[];
+}): ParsedLiveCommand {
+  const options = parseDefinedCommandSpec({
+    invocation: input.invocation,
+    args: input.args,
+    spec: liveAttemptStartCommand,
+  });
+  const tone = parseEnum({
+    invocation: input.invocation,
+    label: "live tone",
+    value: options.tone,
+    supported: liveTones,
+  }) as LiveTone;
+  const refs = [
+    ...parseJsonArray<TargetRef>({
+      invocation: input.invocation,
+      flag: "--refs-json",
+      value: options.refsJson,
+    }),
+    ...targetRefFor({ targetKind: "experiment", targetId: options.experimentId }),
+    ...targetRefFor({ targetKind: "baseline", targetId: options.baselineId }),
+    ...targetRefFor({ targetKind: "measurement", targetId: options.measurementId }),
+  ];
+  const edge = parseAttemptEdge({ invocation: input.invocation, options });
+  const focus = parseAttemptFocus({ invocation: input.invocation, options });
+
+  return {
+    subcommand: "attempts-start",
+    ...parseSharedSetFields({ invocation: input.invocation, options }),
+    nodeKey: options.nodeKey,
+    kind: parseEnum({
+      invocation: input.invocation,
+      label: "live node kind",
+      value: options.kind,
+      supported: liveMapNodeKinds,
+    }) as LiveMapNodeKind,
+    title: options.title,
+    summary: options.summary,
+    tone,
+    occurredAt: options.occurredAt as IsoTimestamp | undefined,
+    visibility: parseOptionalVisibility({
+      invocation: input.invocation,
+      value: options.visibility,
+    }),
+    bodyMarkdown: options.bodyMarkdown,
+    refs,
+    ...(edge === undefined ? {} : { edge }),
+    ...(focus === undefined ? {} : { focus }),
+  };
+}
+
 function parseAttemptPublish(input: {
   readonly invocation: SituCliInvocation;
   readonly args: readonly string[];
@@ -776,7 +916,7 @@ function parseAttemptEdge(input: {
     readonly edgeTone?: string;
     readonly edgeVisibility?: string;
   };
-}): Extract<ParsedLiveCommand, { readonly subcommand: "attempts-publish" }>["edge"] {
+}): ParsedAttemptEdge | undefined {
   const hasEdgeFlag =
     input.options.fromNodeKey !== undefined ||
     input.options.edgeKey !== undefined ||
@@ -837,7 +977,7 @@ function parseAttemptFocus(input: {
     readonly focusSummary?: string;
     readonly relatedNodeKeysJson?: string;
   };
-}): Extract<ParsedLiveCommand, { readonly subcommand: "attempts-publish" }>["focus"] {
+}): ParsedAttemptFocus | undefined {
   const hasFocusFlag =
     input.options.focusMode !== undefined ||
     input.options.focusSummary !== undefined ||

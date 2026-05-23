@@ -33,6 +33,20 @@ but it must not call derived non-frontier points `discarded` or derived
 frontier points `kept`. `Kept`, `discarded`, `accepted`, and `rejected` are
 authored run decisions, not browser-inferred chart states.
 
+Live attempts have an explicit lifecycle:
+
+- When a baseline or experiment begins, the outer agent publishes a visible
+  attempt node with `situ live attempts start`. This node has descriptive title,
+  summary, refs, and detail body, but no numeric metric facts.
+- When measurement finishes, the outer agent appends a measured record for the
+  same `nodeKey` with `situ live attempts publish`. The measured detail includes
+  the numeric metric fact the chart may plot.
+- The browser keeps started-but-unmeasured attempts visible as live work awaiting
+  a metric. It must not plot them by copying the baseline, using zero, or
+  inventing any placeholder value.
+- The chart counts all visible attempt nodes as `Attempts`, but only numeric
+  measured facts participate in `Frontier Points` and the `Running best` line.
+
 When publishing live nodes, the outer agent should use titles that describe what
 changed or what was tried, not only the score. Examples:
 
@@ -72,6 +86,8 @@ requires:
 
 - no accepted experiment with a suspicious optimized-dev-vs-held-out gap, unless
   the workspace case explicitly allows dev-only acceptance
+- started live attempt records that reference started experiment ids
+- plottable live detail facts for measured experiment ids
 - LLM judge evidence that asks whether the manager recognized overfit risk,
   protected held-out data, and avoided presenting a leaky dev frontier as a
   clean generalizing result
@@ -88,9 +104,15 @@ Expected evidence:
 
 - ADR validation passes.
 - Client typecheck/build or Storybook build covers the live chart wording.
+- CLI tests cover `situ live attempts start` as a metric-free started state and
+  `situ live attempts publish` as the measured update path.
+- Client typecheck/build or Storybook build covers visible started-but-unmeasured
+  attempts mixed with measured chart points.
 - Eval deterministic tests cover accepted overfit-risk detection and non-accepted
-  risky candidates.
-- Eval prompt tests cover overfit guidance in the manager prompt.
+  risky candidates, started experiment live coverage, and plottable measured
+  experiment coverage.
+- Eval prompt tests cover overfit guidance and publish-on-start/update-on-measure
+  live guidance in the manager prompt.
 - `mise run check` passes before this slice is considered complete.
 
 ## Consequences

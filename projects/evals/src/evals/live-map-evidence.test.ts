@@ -4,6 +4,7 @@ import { collectLiveMapEvidence } from "./live-map-evidence.js";
 
 test("counts plottable live detail facts and measured experiment coverage", () => {
   const evidence = collectLiveMapEvidence({
+    startedExperimentIds: ["experiment_one", "experiment_two", "experiment_three"],
     measuredExperimentIds: ["experiment_one", "experiment_two"],
     liveRecordsJson: JSON.stringify({
       signals: [{ id: "live_signal_best" }],
@@ -18,6 +19,11 @@ test("counts plottable live detail facts and measured experiment coverage", () =
           nodeKey: "two",
           refs: [{ targetKind: "experiment", targetId: "experiment_two" }],
         },
+        {
+          id: "live_node_three",
+          nodeKey: "three",
+          refs: [{ targetKind: "experiment", targetId: "experiment_three" }],
+        },
       ],
       mapEdges: [],
       focuses: [{ id: "live_focus_one" }],
@@ -25,6 +31,7 @@ test("counts plottable live detail facts and measured experiment coverage", () =
         {
           id: "live_detail_one",
           nodeKey: "one",
+          refs: [{ targetKind: "experiment", targetId: "experiment_one" }],
           facts: [{ label: "Accuracy", value: "0.81", numericValue: 0.81 }],
         },
         {
@@ -38,17 +45,25 @@ test("counts plottable live detail facts and measured experiment coverage", () =
           nodeKey: "note",
           facts: [{ label: "State", value: "running" }],
         },
+        {
+          id: "live_detail_three",
+          nodeKey: "three",
+          refs: [{ targetKind: "experiment", targetId: "experiment_three" }],
+          facts: [],
+        },
       ],
     }),
   });
 
   expect(evidence).toEqual({
     parseable: true,
-    liveNodeCount: 2,
-    liveDetailCount: 3,
+    liveNodeCount: 3,
+    liveDetailCount: 4,
     livePlottableDetailCount: 2,
     liveSignalCount: 1,
     liveFocusCount: 1,
+    startedExperimentRefCount: 3,
+    startedExperimentRefs: ["experiment_one", "experiment_two", "experiment_three"],
     measuredExperimentRefCount: 2,
     measuredExperimentRefs: ["experiment_one", "experiment_two"],
   });
@@ -57,6 +72,7 @@ test("counts plottable live detail facts and measured experiment coverage", () =
 test("returns empty evidence for unparsable live records", () => {
   expect(
     collectLiveMapEvidence({
+      startedExperimentIds: ["experiment_one"],
       measuredExperimentIds: ["experiment_one"],
       liveRecordsJson: "{bad",
     }),
@@ -67,6 +83,8 @@ test("returns empty evidence for unparsable live records", () => {
     livePlottableDetailCount: 0,
     liveSignalCount: 0,
     liveFocusCount: 0,
+    startedExperimentRefCount: 0,
+    startedExperimentRefs: [],
     measuredExperimentRefCount: 0,
     measuredExperimentRefs: [],
   });

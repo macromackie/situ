@@ -685,6 +685,7 @@ type ChartRowData = {
   frontierY: number | null;
   nodeKey: string;
   title: string;
+  summary: string;
   tone: LiveTone;
 };
 
@@ -781,10 +782,6 @@ function buildChartData(
         runningBest = v;
       }
     }
-  } else {
-    for (const node of nodes) {
-      if (node.tone === "good") frontierKeys.add(node.nodeKey);
-    }
   }
 
   const data: ChartRowData[] = nodes.map((node, i) => {
@@ -796,6 +793,7 @@ function buildChartData(
       frontierY: isFrontier && y !== null ? y : null,
       nodeKey: node.nodeKey,
       title: node.title,
+      summary: node.summary,
       tone: node.tone,
     };
   });
@@ -927,6 +925,40 @@ function RunMapTooltip(props: { active?: boolean; payload?: readonly TooltipEntr
   );
 }
 
+function RunningAttemptRail(props: {
+  readonly rows: readonly ChartRowData[];
+  readonly selectedKey?: string;
+  readonly onSelect: (key: string) => void;
+}) {
+  if (props.rows.length === 0) return null;
+
+  return (
+    <div className="map-running-rail" aria-label="Attempts awaiting measurement">
+      <span className="map-running-label">Awaiting metric</span>
+      <div className="map-running-list">
+        {props.rows.map((row) => {
+          const isSelected = row.nodeKey === props.selectedKey;
+          return (
+            <button
+              key={row.nodeKey}
+              type="button"
+              className={`map-running-item tone-${toneClass(row.tone)}${isSelected ? " map-running-item-selected" : ""}`}
+              onClick={() => props.onSelect(row.nodeKey)}
+              aria-pressed={isSelected}
+            >
+              <span className="map-running-dot" aria-hidden="true" />
+              <span className="map-running-text">
+                <span className="map-running-title">{row.title}</span>
+                <span className="map-running-summary">{row.summary}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function RunMapSection(props: {
   readonly model: Extract<ProjectOverviewModel, { readonly kind: "project" }>;
 }) {
@@ -985,6 +1017,7 @@ function RunMapChart(props: {
     props.nodes,
     props.details,
   );
+  const runningRows = data.filter((row) => row.y === null);
   const n = props.nodes.length;
   const attemptLabel = n === 1 ? "Attempt" : "Attempts";
   const frontierLabel = frontierKeys.size === 1 ? "Frontier Point" : "Frontier Points";
@@ -1000,6 +1033,20 @@ function RunMapChart(props: {
               <circle cx={5} cy={5} r={3.5} fill="var(--muted)" opacity={0.3} />
             </svg>
             Other attempts
+          </span>
+          <span className="map-legend-item">
+            <svg width={10} height={10}>
+              <circle
+                cx={5}
+                cy={5}
+                r={4}
+                fill="none"
+                stroke="var(--muted)"
+                strokeWidth={1.5}
+                opacity={0.65}
+              />
+            </svg>
+            Awaiting metric
           </span>
           <span className="map-legend-item">
             <svg width={10} height={10}>
@@ -1023,10 +1070,15 @@ function RunMapChart(props: {
           </span>
         </span>
       </div>
+      <RunningAttemptRail
+        rows={runningRows}
+        selectedKey={props.selectedKey}
+        onSelect={props.onSelect}
+      />
       {metricCount === 0 ? (
         <div className="map-chart-diagnostic">
-          <span>No plottable metric facts.</span>
-          <span>Publish numeric facts in live details to draw the run map.</span>
+          <span>No measured points yet.</span>
+          <span>Started attempts will plot here when numeric live detail facts arrive.</span>
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={460}>
@@ -2202,6 +2254,105 @@ const liveCss = `
   color: var(--muted);
 }
 
+.map-running-rail {
+  margin: 12px 8px 0;
+  padding: 10px 0 2px;
+  border-top: 1px solid var(--rule-soft);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+}
+
+.map-running-label {
+  padding-top: 7px;
+  font-family: var(--sans);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.map-running-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.map-running-item {
+  min-width: 180px;
+  max-width: min(320px, 100%);
+  min-height: 46px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: color-mix(in srgb, white 92%, var(--paper-bg));
+  padding: 7px 9px;
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  align-items: start;
+  gap: 7px;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--sans);
+}
+
+.map-running-item:hover,
+.map-running-item-selected {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--rule));
+  background: color-mix(in srgb, var(--accent) 6%, white);
+}
+
+.map-running-item:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.map-running-dot {
+  width: 9px;
+  height: 9px;
+  margin-top: 3px;
+  border: 1.5px solid var(--muted);
+  border-radius: 50%;
+  background: white;
+  opacity: 0.75;
+}
+
+.map-running-item.tone-warning .map-running-dot,
+.map-running-item.tone-bad .map-running-dot {
+  border-color: var(--accent-2);
+}
+
+.map-running-item.tone-good .map-running-dot,
+.map-running-item.tone-done .map-running-dot {
+  border-color: var(--accent);
+}
+
+.map-running-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.map-running-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.map-running-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--muted);
+}
+
 @media (max-width: 760px) {
   .map-chart-header {
     grid-template-columns: 1fr;
@@ -2222,6 +2373,18 @@ const liveCss = `
   .map-chart-legend {
     flex-wrap: wrap;
     gap: 8px 12px;
+  }
+
+  .map-running-rail {
+    grid-template-columns: 1fr;
+  }
+
+  .map-running-label {
+    padding-top: 0;
+  }
+
+  .map-running-item {
+    width: 100%;
   }
 }
 

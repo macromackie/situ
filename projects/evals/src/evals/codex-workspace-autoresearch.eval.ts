@@ -166,10 +166,6 @@ evalite<WorkspaceAutoresearchCase, WorkspaceAutoresearchOutput, string>(
                 baselineMetricNames.has(measurement.metricName),
             ),
           );
-          const liveMapEvidence = collectLiveMapEvidence({
-            liveRecordsJson: output.liveRecords.stdout,
-            measuredExperimentIds: comparableMeasuredExperimentIds,
-          });
           const overfitEvidence = collectOverfitEvidence({
             experiments,
             measurements,
@@ -220,6 +216,12 @@ evalite<WorkspaceAutoresearchCase, WorkspaceAutoresearchOutput, string>(
               experiment.worktreePath !== undefined &&
               experiment.assignedTo !== undefined,
           );
+          const startedExperimentIds = distinctExperimentIds(isolatedExperiments);
+          const liveMapEvidence = collectLiveMapEvidence({
+            liveRecordsJson: output.liveRecords.stdout,
+            startedExperimentIds,
+            measuredExperimentIds: comparableMeasuredExperimentIds,
+          });
           const checkpointedExperimentCount = experiments.filter(
             (experiment) =>
               experiment.status === "ready_for_review" ||
@@ -239,7 +241,7 @@ evalite<WorkspaceAutoresearchCase, WorkspaceAutoresearchOutput, string>(
             comparableMeasuredExperimentCount >= requiredCount &&
             comparableExperimentMeasurementCount >= requiredCount;
           const hasLiveMapCoverage =
-            liveMapEvidence.liveNodeCount >= requiredCount &&
+            liveMapEvidence.startedExperimentRefCount >= requiredCount &&
             liveMapEvidence.livePlottableDetailCount >= requiredCount &&
             liveMapEvidence.measuredExperimentRefCount >= requiredCount;
           const hasProjectReport = projectReportCount >= 1;
@@ -651,6 +653,20 @@ function distinctMeasuredExperimentIds(
         }
 
         return [measurement.experimentId];
+      }),
+    ),
+  );
+}
+
+function distinctExperimentIds(experiments: readonly ParsedExperiment[]): readonly string[] {
+  return Array.from(
+    new Set(
+      experiments.flatMap((experiment) => {
+        if (experiment.id === undefined) {
+          return [];
+        }
+
+        return [experiment.id];
       }),
     ),
   );

@@ -57,17 +57,38 @@ client may fall back to parsing `value` as a number for older records.
 ## CLI Contract
 
 The existing append-only set commands remain available. The CLI also exposes a
-one-shot publishing command for the common manager path:
+pair of one-shot attempt commands for the common manager path:
 
 ```text
+situ live attempts start [flags]
 situ live attempts publish [flags]
 ```
 
-It creates a live map node and a live node detail in one app transaction. When
-edge flags are present, it also creates the connecting edge. When focus flags
-are present, it also creates a focus record.
+`start` creates a live map node and a live node detail in one app transaction
+without metric facts. It is used when an experiment or baseline attempt starts,
+before a measurement exists. `publish` creates the same shape with a structured
+numeric metric fact when the attempt is measured. Both commands append records;
+publishing a measured attempt with the same `nodeKey` replaces the current
+visible node/detail because the current live state is newest-by-key.
 
-Required flags:
+When edge flags are present, either command also creates the connecting edge.
+When focus flags are present, either command also creates a focus record.
+
+Required flags for `start`:
+
+```text
+--project-id <project-id>
+--authored-by-kind <human|local_agent|system>
+--authored-by-id <id>
+--node-key <key>
+--kind <baseline|branch|verification|finding|blocker|decision|result>
+--title <title>
+--summary <summary>
+--tone <neutral|good|watch|blocked|done>
+--body <markdown>
+```
+
+Required flags for `publish`:
 
 ```text
 --project-id <project-id>
@@ -83,12 +104,18 @@ Required flags:
 --metric-value <number>
 ```
 
-Optional metric and link flags:
+Optional metric flags for `publish`:
 
 ```text
 --metric-name <name>
 --metric-unit <unit>
 --metric-direction <higher_is_better|lower_is_better>
+```
+
+Optional link flags for both attempt commands:
+
+```text
+--occurred-at <iso-timestamp>
 --experiment-id <experiment-id>
 --baseline-id <baseline-id>
 --measurement-id <measurement-id>
@@ -100,10 +127,17 @@ Optional metric and link flags:
 --focus-mode <overview|node|comparison|blocked>
 --focus-summary <summary>
 --related-node-keys-json <json-array>
+--visibility <visible|hidden>
+--authored-by-display-name <name>
+--now <iso-timestamp>
 ```
 
 The `--experiment-id`, `--baseline-id`, and `--measurement-id` convenience
 flags add typed target refs alongside any `--refs-json` refs.
+
+`start` must not use a placeholder metric value. Until `publish` appends a
+numeric fact for the same `nodeKey`, the browser treats the attempt as visible
+live work that is awaiting measurement rather than a plottable chart point.
 
 ## Eval Contract
 
@@ -139,9 +173,11 @@ Expected evidence:
 - `@situ/live` tests cover structured numeric fact normalization and invalid
   metric directions/values.
 - CLI tests cover `situ live attempts publish`, including node/detail/edge/focus
-  creation and typed refs.
-- Client build or component tests cover the missing numeric-facts diagnostic and
-  the running-minimum/running-maximum frontier behavior.
+  creation and typed refs, and `situ live attempts start`, including empty facts,
+  typed refs, optional edge/focus creation, and no metric requirement.
+- Client build or component tests cover the missing numeric-facts diagnostic,
+  visible started-but-unmeasured attempts, and the running-minimum/running-maximum
+  frontier behavior.
 - Eval harness tests cover live record capture.
 - Deterministic eval evidence tests cover live map coverage and plottable metric
   fact counting.

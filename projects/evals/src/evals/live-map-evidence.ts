@@ -30,6 +30,8 @@ type LiveMapEvidence = {
   readonly livePlottableDetailCount: number;
   readonly liveSignalCount: number;
   readonly liveFocusCount: number;
+  readonly startedExperimentRefCount: number;
+  readonly startedExperimentRefs: readonly string[];
   readonly measuredExperimentRefCount: number;
   readonly measuredExperimentRefs: readonly string[];
 };
@@ -46,16 +48,25 @@ type ParsedLiveNodeFact = {
 
 export function collectLiveMapEvidence(input: {
   readonly liveRecordsJson: string;
+  readonly startedExperimentIds?: readonly string[];
   readonly measuredExperimentIds: readonly string[];
 }): LiveMapEvidence {
   const parsed = parseLiveRecordsOutput(input.liveRecordsJson);
+  const startedExperimentIds = new Set(input.startedExperimentIds ?? input.measuredExperimentIds);
   const measuredExperimentIds = new Set(input.measuredExperimentIds);
-  const measuredExperimentRefs = uniqueStrings(
-    [...parsed.records.mapNodes, ...parsed.records.nodeDetails]
-      .flatMap((record) => refsFromUnknown(record.refs))
-      .filter((ref) => ref.targetKind === "experiment" && ref.targetId !== undefined)
-      .map((ref) => ref.targetId as string)
-      .filter((experimentId) => measuredExperimentIds.has(experimentId)),
+  const nodeExperimentRefs = uniqueStrings(
+    parsed.records.mapNodes.flatMap((record) => experimentRefIds(record.refs)),
+  );
+  const plottableDetailExperimentRefs = uniqueStrings(
+    parsed.records.nodeDetails
+      .filter((detail) => (detail.facts ?? []).some(isPlottableFact))
+      .flatMap((detail) => experimentRefIds(detail.refs)),
+  );
+  const startedExperimentRefs = nodeExperimentRefs.filter((experimentId) =>
+    startedExperimentIds.has(experimentId),
+  );
+  const measuredExperimentRefs = plottableDetailExperimentRefs.filter((experimentId) =>
+    measuredExperimentIds.has(experimentId),
   );
 
   return {
@@ -67,6 +78,8 @@ export function collectLiveMapEvidence(input: {
     ).length,
     liveSignalCount: parsed.records.signals.length,
     liveFocusCount: parsed.records.focuses.length,
+    startedExperimentRefCount: startedExperimentRefs.length,
+    startedExperimentRefs,
     measuredExperimentRefCount: measuredExperimentRefs.length,
     measuredExperimentRefs,
   };
@@ -131,6 +144,12 @@ function refsFromUnknown(value: unknown): readonly ParsedTargetRef[] {
   return value
     .map((ref) => ref as ParsedTargetRef)
     .filter((ref) => typeof ref === "object" && ref !== null);
+}
+
+function experimentRefIds(value: unknown): readonly string[] {
+  return refsFromUnknown(value)
+    .filter((ref) => ref.targetKind === "experiment" && ref.targetId !== undefined)
+    .map((ref) => ref.targetId as string);
 }
 
 function isPlottableFact(value: unknown): boolean {

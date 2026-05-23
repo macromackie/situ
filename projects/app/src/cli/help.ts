@@ -90,7 +90,7 @@ Flags:
     `Usage: situ live <subcommand>
 
 Subcommands:
-  attempts  Publish a live run-map attempt with metric detail.
+  attempts  Start or publish live run-map attempts.
   signals   Create live signal records.
   nodes     Create live run-map node records.
   edges     Create live run-map edge records.
@@ -101,7 +101,41 @@ Subcommands:
   ],
   [
     "live attempts",
-    `Usage: situ live attempts publish [flags]
+    `Usage: situ live attempts <start|publish> [flags]
+`,
+  ],
+  [
+    "live attempts start",
+    `Usage: situ live attempts start [flags]
+
+Required flags:
+  --project-id <project-id>
+  --node-key <key>
+  --kind <baseline|branch|verification|finding|blocker|decision|result>
+  --title <title>
+  --summary <summary>
+  --tone <neutral|good|watch|blocked|done>
+  --body <markdown>
+  --authored-by-kind <human|local_agent|system>
+  --authored-by-id <id>
+
+Optional flags:
+  --occurred-at <iso-timestamp>
+  --refs-json <json-array>
+  --experiment-id <experiment-id>
+  --baseline-id <baseline-id>
+  --measurement-id <measurement-id>
+  --from-node-key <key>
+  --edge-key <key>
+  --edge-relation <led_to|depends_on|blocked_by|supersedes|verifies>
+  --edge-tone <neutral|good|watch|blocked>
+  --edge-visibility <visible|hidden>
+  --focus-mode <overview|node|comparison|blocked>
+  --focus-summary <summary>
+  --related-node-keys-json <json-array>
+  --visibility <visible|hidden>
+  --authored-by-display-name <name>
+  --now <iso-timestamp>
 `,
   ],
   [

@@ -40,8 +40,11 @@ THE LOOP
      - Re-run the current best now and then: a win that does not survive
        re-validation was noise. The surviving best is your frontier — keep it
        visible.
-     - Publish each baseline and experiment to the live run map as you go with
-       \`situ live attempts publish\`; use the lower-level \`situ live nodes set\`,
+     - Publish each baseline and experiment to the live run map as soon as it
+       starts with \`situ live attempts start\`; use descriptive titles for what
+       is being tried. Do not fake a metric while it is running. When measurement
+       finishes, append \`situ live attempts publish\` with the same node key and
+       the real numeric metric fact. Use the lower-level \`situ live nodes set\`,
        \`situ live details set\`, \`situ live edges set\`, and \`situ live focus set\`
        commands when you need finer control. Numeric metric facts in live details
        are what the dashboard charts. The run map is curated, not derived — skip

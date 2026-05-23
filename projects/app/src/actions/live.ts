@@ -71,6 +71,8 @@ export type PublishLiveAttemptActionInput = {
   };
 };
 
+export type StartLiveAttemptActionInput = Omit<PublishLiveAttemptActionInput, "facts">;
+
 export type CreateLiveSignalActionResult = {
   readonly signal: LiveSignalRecord;
 };
@@ -97,6 +99,8 @@ export type PublishLiveAttemptActionResult = {
   readonly edge?: LiveMapEdgeRecord;
   readonly focus?: LiveFocusRecord;
 };
+
+export type StartLiveAttemptActionResult = PublishLiveAttemptActionResult;
 
 export function createLiveSignalAction(
   input: CreateLiveSignalActionInput,
@@ -139,6 +143,21 @@ export function createLiveNodeDetailAction(
 }
 
 export function publishLiveAttemptAction(
+  input: PublishLiveAttemptActionInput,
+): PublishLiveAttemptActionResult {
+  return writeLiveAttemptRecords(input);
+}
+
+export function startLiveAttemptAction(
+  input: StartLiveAttemptActionInput,
+): StartLiveAttemptActionResult {
+  return writeLiveAttemptRecords({
+    ...input,
+    facts: [],
+  });
+}
+
+function writeLiveAttemptRecords(
   input: PublishLiveAttemptActionInput,
 ): PublishLiveAttemptActionResult {
   return runAppTransaction({

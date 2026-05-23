@@ -50,6 +50,9 @@ test("workspace manager command launches one native-goal terminal manager", () =
   expect(command.prompt).toContain("situ reports generate");
   expect(command.prompt).toContain("mark it as overfit-risky rather than a clean accepted result");
   expect(command.prompt).toContain("best non-leaky generalizing branch");
+  expect(command.prompt).toContain("situ live attempts start");
+  expect(command.prompt).toContain("do not fake metric values");
+  expect(command.prompt).toContain("same node key with `situ live attempts publish`");
 });
 
 function sectionHeadings(markdown: string): readonly string[] {

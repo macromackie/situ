@@ -6325,6 +6325,96 @@ test("publishes a live attempt node, metric detail, edge, and focus", async () =
   });
 });
 
+test("starts a live attempt without metric facts", async () => {
+  await withTempDatabasePath(async (databasePath) => {
+    const projectId = await createCliProjectFixture({
+      databasePath,
+      prefix: "cli_live_start",
+    });
+
+    const result = await runSituCli({
+      args: [
+        "--json",
+        "--db",
+        databasePath,
+        "live",
+        "attempts",
+        "start",
+        "--project-id",
+        projectId,
+        "--authored-by-kind",
+        "local_agent",
+        "--authored-by-id",
+        "manager",
+        "--node-key",
+        "candidate-running",
+        "--kind",
+        "branch",
+        "--title",
+        "Error-model scoring",
+        "--summary",
+        "Testing whether edit-distance features improve dev accuracy.",
+        "--tone",
+        "neutral",
+        "--body",
+        "The branch is running and does not have a metric yet.",
+        "--experiment-id",
+        "experiment_cli_live_running",
+        "--from-node-key",
+        "baseline",
+        "--edge-relation",
+        "led_to",
+        "--focus-mode",
+        "node",
+        "--focus-summary",
+        "Error-model scoring is in progress.",
+        "--now",
+        "2026-05-22T12:05:00.000Z",
+      ],
+      environment,
+    });
+
+    expect(result.exitCode).toBe(0);
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed).toMatchObject({
+      node: {
+        projectId,
+        nodeKey: "candidate-running",
+        title: "Error-model scoring",
+        tone: "neutral",
+        refs: [{ targetKind: "experiment", targetId: "experiment_cli_live_running" }],
+      },
+      detail: {
+        projectId,
+        nodeKey: "candidate-running",
+        bodyMarkdown: "The branch is running and does not have a metric yet.",
+        facts: [],
+        refs: [{ targetKind: "experiment", targetId: "experiment_cli_live_running" }],
+      },
+      edge: {
+        fromNodeKey: "baseline",
+        toNodeKey: "candidate-running",
+        relation: "led_to",
+      },
+      focus: {
+        mode: "node",
+        primaryNodeKey: "candidate-running",
+        summary: "Error-model scoring is in progress.",
+      },
+    });
+
+    const listResult = await runSituCli({
+      args: ["--json", "--db", databasePath, "live", "list", "--project-id", projectId],
+      environment,
+    });
+
+    expect(JSON.parse(listResult.stdout)).toMatchObject({
+      mapNodes: [{ nodeKey: "candidate-running" }],
+      nodeDetails: [{ nodeKey: "candidate-running", facts: [] }],
+    });
+  });
+});
+
 test("validates live syntax before opening the database", async () => {
   const directory = mkdtempSync(join(tmpdir(), "situ-cli-"));
   const databasePath = join(directory, "nested", "situ.db");
