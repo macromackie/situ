@@ -81,7 +81,7 @@ export function ArtifactTable({ artifact }: { artifact: Artifact }) {
   return (
     <section {...stylex.props(s.section)}>
       <Card
-        title={table?.title ?? "Examples"}
+        title={table?.title ?? artifact.name}
         aside={
           <button {...stylex.props(s.button)} disabled={loading} onClick={load}>
             {loading ? "Loading…" : table ? "Reload" : "Load verified table"}
@@ -94,8 +94,8 @@ export function ArtifactTable({ artifact }: { artifact: Artifact }) {
             <div {...stylex.props(s.toolbar)}>
               <input
                 {...stylex.props(s.input, s.search)}
-                aria-label="Filter examples"
-                placeholder="Filter examples…"
+                aria-label={`Filter ${table.title}`}
+                placeholder="Filter rows…"
                 value={query}
                 onChange={(event) => {
                   setQuery(event.target.value);
@@ -165,8 +165,8 @@ export function ArtifactTable({ artifact }: { artifact: Artifact }) {
           </>
         ) : (
           <p {...stylex.props(s.cardBody, s.muted)}>
-            Load the attached table to inspect individual observations. Its
-            recorded hash is checked before display.
+            Load this table to inspect its rows. Its recorded hash is checked
+            before display.
           </p>
         )}
       </Card>
