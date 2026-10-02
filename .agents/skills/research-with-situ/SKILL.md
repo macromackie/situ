@@ -20,7 +20,8 @@ counterevidence, before treating the brief as a conclusion. Its excerpts are bou
 An experiment can start as a title and a short description. Keep its distinguishing variable and comparison clear.
 Use independent records for parallel alternatives. A `derived_from` link preserves the parent revision used.
 Put source snapshots, input hashes, external run IDs, and commands in run metadata or artifact references as useful.
-Keep artifacts in durable locations; Situ currently stores references without copying their bytes.
+Keep artifacts in durable locations; Situ stores references without copying their bytes. Use `format: "table/v1"`
+and a SHA-256 for small before/after or outcome tables that humans should inspect in the UI.
 
 Record meaningful transitions and findings as you work. Share concise findings and record IDs through native agent
 messaging when they help peers. Continue investigating, reproducing, or following counterevidence while the user's
@@ -31,7 +32,8 @@ Use notes for informal observations, human feedback, or proposed next steps. Kee
 Tags can express phases or research themes without imposing a universal pipeline.
 
 For metrics, keep comparison conditions explicit in `cohort`. Distinguish seeds/runs and use a new cohort when the
-dataset, grader, game version, or evaluation conditions change. Qualitative research does not need invented scores.
+dataset, grader, game version, or evaluation conditions change. Give unlike objectives distinct metric names.
+Record same-step compute coordinates when update counts are not comparable. Qualitative research needs no invented scores.
 
 ## Safe concurrent writes
 

@@ -13,6 +13,7 @@ description: Make live research understandable without losing reading or editing
 - Hold the originally opened revision throughout an edit. A live update cannot authorize overwriting it.
 - Keep source details and raw metadata below summaries.
 - Render user text as text. Allow only artifact URI schemes accepted by the shared schema.
+- Load table artifacts only on request, with byte/schema limits, omitted credentials, and hash verification.
 - Use semantic controls, visible focus, labeled charts, and numeric equivalents for chart values.
 
 ## Checks

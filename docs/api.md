@@ -112,3 +112,33 @@ A runner can use optional scalar metadata `attempt`, `stage`, `phase`, `outcome`
 stages. The experiment detail groups these records into a flow. `outcome` describes execution (for example,
 completed, failed, or interrupted); `gate` describes a scientific decision. Neither grants execution authority.
 Keep human analysis in linked notes/findings so automated stage updates cannot replace it.
+
+## Optional table artifacts
+
+An artifact can declare `format: "table/v1"` and a SHA-256. Its JSON bytes follow:
+
+```json
+{
+  "schema": "situ.table.v1",
+  "title": "Before and after",
+  "columns": ["input", "before", "after", "score"],
+  "rows": [{ "input": "example", "before": "a", "after": "b", "score": 1 }]
+}
+```
+
+The schema in `workspaces/core/src/tables.ts` owns limits: up to 24 unique columns, 1,000 rows, scalar cells.
+The browser loads at most 2 MiB on an explicit click, omits credentials, rejects redirects, verifies the recorded
+hash, then parses and renders text. Cross-origin hosts must allow the Situ origin through CORS. A missing or changed
+artifact reports an error. This verifies a preview's bytes; it does not copy the artifact into durable Situ storage.
+Other artifacts remain references.
+
+## Runner presentation conventions
+
+Run metadata may include `attempt`, `stage`, `phase`, `method`, `outcome`, and `gate`. These optional fields produce
+branch cards without changing the research-record model. A training run's `derived_from` link to another attempt's
+training run identifies its checkpoint parent; collection inputs remain separate links.
+
+Comparison panels can align a metric with `train_tokens`, `train_seconds`, or `environment_steps` samples at exactly
+the same record/cohort/step, with units `tokens`, `seconds`, and `transitions` respectively. Missing coordinates are disclosed and omitted. Units mean what the producing runner
+documents: matching forward tokens does not establish matching FLOPs. Incompatible metric/cohort/unit/direction
+series remain separate. Use distinct metric names for mathematically different training objectives.

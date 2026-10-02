@@ -14,7 +14,8 @@ description: Preserve observations and distinguish them from conclusions.
 - Compare matching metric/cohort/unit/direction only. Disclose chart truncation.
 - Attribute findings and retain supporting/contradicting links. Actor names are caller-supplied attribution.
 - Label synthetic examples. Never present them as empirical policy performance.
-- Treat artifacts as references until byte ingestion and verification exist.
+- Treat artifacts as references. Verify declared table bytes against SHA-256 before preview; do not imply durable ingestion.
+- Join compute-axis coordinates only at the same record, cohort, and step; disclose omitted points.
 
 ## Checks
 

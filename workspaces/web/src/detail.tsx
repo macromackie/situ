@@ -7,6 +7,7 @@ import { styles as s } from "./styles";
 import { Badge, Card, Editor, RecordLink, time } from "./ui";
 import { RelatedRecords } from "./dashboard";
 import { Comparison } from "./charts";
+import { ArtifactTable } from "./artifact-table";
 import { ExperimentFlow, RunOutcome } from "./experiment-flow";
 
 export function Detail() {
@@ -104,7 +105,18 @@ export function Detail() {
           </div>
         </section>
       )}
-      <ExperimentFlow records={[record, ...linkedRuns]} />
+      {record.artifacts
+        .filter((artifact) => artifact.format === "table/v1")
+        .map((artifact) => (
+          <ArtifactTable
+            key={`${artifact.uri}-${artifact.sha256}`}
+            artifact={artifact}
+          />
+        ))}
+      <ExperimentFlow
+        records={[record, ...linkedRuns]}
+        context={snapshot.records}
+      />
       <div {...stylex.props(s.grid)}>
         <div>
           <section {...stylex.props(s.section)}>

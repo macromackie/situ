@@ -5,6 +5,7 @@ import { kinds, type ResearchRecord } from "../../core/src/index";
 import { useResearch } from "./state";
 import { styles as s } from "./styles";
 import { Badge, Card, Editor, RecordLink, time } from "./ui";
+import { ExperimentFlow, RunOutcome } from "./experiment-flow";
 import { Comparison } from "./charts";
 
 export function Home() {
@@ -101,7 +102,7 @@ export function Dashboard() {
   const { projectId } = useParams({ strict: false });
   const { snapshot } = useResearch();
   const [search, setSearch] = useState("");
-  const [kind, setKind] = useState("all");
+  const [kind, setKind] = useState("overview");
   const [editing, setEditing] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   if (!snapshot)
@@ -118,14 +119,21 @@ export function Dashboard() {
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const filtered = records.filter(
     (record) =>
-      (kind === "all" || record.kind === kind) &&
+      (kind === "all" ||
+        (kind === "overview" && record.kind !== "run") ||
+        record.kind === kind) &&
       `${record.title} ${record.body} ${record.tags.join(" ")}`
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
+  const trainingRuns = records.filter(
+    (record) => record.metadata.stage === "train",
+  );
   const comparison = selected.length
     ? records.filter((record) => selected.includes(record.id))
-    : records;
+    : trainingRuns.length
+      ? trainingRuns
+      : records;
   const stats = [
     [
       "Questions",
@@ -196,6 +204,7 @@ export function Dashboard() {
           ))}
         </Card>
       </div>
+      <ExperimentFlow records={records} context={snapshot.records} />
       <Card
         title="Research"
         aside={
@@ -220,6 +229,7 @@ export function Dashboard() {
             value={kind}
             onChange={(event) => setKind(event.target.value)}
           >
+            <option value="overview">Research overview</option>
             <option value="all">All records</option>
             {kinds.map((item) => (
               <option key={item}>{item}</option>
@@ -266,6 +276,7 @@ export function Dashboard() {
                   <td {...stylex.props(s.muted)}>{record.kind}</td>
                   <td>
                     <Badge state={record.state} />
+                    <RunOutcome record={record} />
                   </td>
                   <td {...stylex.props(s.muted)}>{record.actor}</td>
                 </tr>
@@ -277,13 +288,6 @@ export function Dashboard() {
           <div {...stylex.props(s.empty)}>No matching records.</div>
         )}
       </Card>
-      {snapshot.sampleCount > snapshot.samples.length && (
-        <p {...stylex.props(s.muted)}>
-          Charts show the most recent {snapshot.samples.length.toLocaleString()}{" "}
-          measurements across this workspace. Full history is available through
-          the samples API.
-        </p>
-      )}
       {editing && (
         <Editor projectId={project.id} onClose={() => setEditing(false)} />
       )}
@@ -311,6 +315,7 @@ export function RelatedRecords({
           <div {...stylex.props(s.row)}>
             <span {...stylex.props(s.muted)}>{record.kind}</span>
             <Badge state={record.state} />
+            <RunOutcome record={record} />
           </div>
         </div>
       ))}

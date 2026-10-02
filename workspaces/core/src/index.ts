@@ -18,3 +18,6 @@ export type {
 } from "./model";
 export { contextBrief } from "./context";
 export { requestJson, HttpError } from "./http";
+
+export { tableArtifactSchema } from "./tables";
+export type { TableArtifact } from "./tables";

@@ -44,18 +44,58 @@ export function Comparison({
   samples: Sample[];
 }) {
   const [selected, setSelected] = useState("");
+  const [axis, setAxis] = useState("step");
   const ids = new Set(records.map((record) => record.id));
   const history = useMeasurements(
     records.map((record) => record.id),
     samples,
   );
   const relevant = history.samples.filter((sample) => ids.has(sample.recordId));
-  const groups = [...new Set(relevant.map(group))];
+  const groups = [...new Set([...relevant].reverse().map(group))].sort(
+    (a, b) => {
+      const priority = (key: string) =>
+        ["accuracy", "success", "heldout_accuracy"].includes(JSON.parse(key)[0])
+          ? 0
+          : 1;
+      return priority(a) - priority(b);
+    },
+  );
   const key = groups.includes(selected) ? selected : groups[0];
   useEffect(() => {
     if (key && key !== selected) setSelected(key);
   }, [key, selected]);
-  const points = relevant.filter((sample) => group(sample) === key);
+  const matching = relevant.filter((sample) => group(sample) === key);
+  const coordinates = new Map(
+    relevant
+      .filter(
+        (sample) =>
+          sample.metric === axis &&
+          sample.unit ===
+            {
+              train_tokens: "tokens",
+              train_seconds: "seconds",
+              environment_steps: "transitions",
+            }[axis],
+      )
+      .map((sample) => [
+        `${sample.recordId}:${sample.cohort}:${sample.step}`,
+        sample.value,
+      ]),
+  );
+  const points = matching.flatMap((sample) => {
+    const coordinate =
+      axis === "step"
+        ? sample.step
+        : coordinates.get(`${sample.recordId}:${sample.cohort}:${sample.step}`);
+    return coordinate === undefined ? [] : [{ ...sample, step: coordinate }];
+  });
+  const axisLabel =
+    {
+      step: "updates",
+      train_tokens: "forward tokens",
+      train_seconds: "training seconds",
+      environment_steps: "environment transitions",
+    }[axis] ?? axis;
   const chosenIds = [...new Set(points.map((sample) => sample.recordId))].slice(
     -4,
   );
@@ -89,21 +129,34 @@ export function Comparison({
       title="Compare measurements"
       aside={
         groups.length > 0 && (
-          <select
-            aria-label="Metric and cohort"
-            {...stylex.props(s.input)}
-            value={key}
-            onChange={(event) => setSelected(event.target.value)}
-          >
-            {groups.map((item) => {
-              const [metric, cohort] = JSON.parse(item);
-              return (
-                <option value={item} key={item}>
-                  {metric} · {cohort}
-                </option>
-              );
-            })}
-          </select>
+          <div {...stylex.props(s.row)}>
+            <select
+              aria-label="Horizontal axis"
+              {...stylex.props(s.input)}
+              value={axis}
+              onChange={(event) => setAxis(event.target.value)}
+            >
+              <option value="step">Updates</option>
+              <option value="train_tokens">Forward tokens</option>
+              <option value="train_seconds">Training seconds</option>
+              <option value="environment_steps">Environment transitions</option>
+            </select>
+            <select
+              aria-label="Metric and cohort"
+              {...stylex.props(s.input)}
+              value={key}
+              onChange={(event) => setSelected(event.target.value)}
+            >
+              {groups.map((item) => {
+                const [metric, cohort] = JSON.parse(item);
+                return (
+                  <option value={item} key={item}>
+                    {metric} · {cohort}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
         )
       }
     >
@@ -117,8 +170,7 @@ export function Comparison({
       )}
       {!series.length ? (
         <div {...stylex.props(s.empty)}>
-          Measurements appear here when a run reports them. Qualitative findings
-          work without metrics.
+          No matching measurements for this metric and horizontal axis.
         </div>
       ) : (
         <div {...stylex.props(s.cardBody)}>
@@ -128,7 +180,7 @@ export function Comparison({
             <svg
               viewBox="0 0 520 215"
               role="img"
-              aria-label={`${points[0].metric} by step, cohort ${points[0].cohort}`}
+              aria-label={`${points[0].metric} by ${axisLabel}, cohort ${points[0].cohort}`}
               style={{ width: "100%", maxHeight: 250 }}
             >
               {[0, 0.5, 1].map((fraction) => {
@@ -164,7 +216,8 @@ export function Comparison({
                 fontSize="10"
                 fill="#8690a0"
               >
-                {maxX} steps
+                {maxX.toLocaleString(undefined, { maximumFractionDigits: 1 })}{" "}
+                {axisLabel}
               </text>
               {series.map((line) => (
                 <g key={line.record.id}>
@@ -186,7 +239,7 @@ export function Comparison({
                     >
                       <title>
                         {line.record.title}: {point.value} {point.unit} at step{" "}
-                        {point.step}
+                        {point.step} {axisLabel}
                       </title>
                     </circle>
                   ))}
@@ -217,6 +270,8 @@ export function Comparison({
             </tbody>
           </table>
           <p {...stylex.props(s.muted)}>
+            {matching.length - points.length > 0 &&
+              `${matching.length - points.length} points lack the selected coordinate. `}
             Large curves retain endpoints and bucket extrema. Same metric,
             cohort, unit, and direction. Showing {series.length} of{" "}
             {new Set(points.map((point) => point.recordId)).size} series.{" "}

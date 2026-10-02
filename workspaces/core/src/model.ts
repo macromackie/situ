@@ -32,6 +32,7 @@ export const artifactSchema = z
       .regex(/^[a-f0-9]{64}$/)
       .optional(),
     description: z.string().max(2000).default(""),
+    format: z.literal("table/v1").optional(),
   })
   .strict();
 export const recordInput = z
