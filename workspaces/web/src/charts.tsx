@@ -45,6 +45,10 @@ export function Comparison({
 }) {
   const [selected, setSelected] = useState("");
   const [axis, setAxis] = useState("step");
+  const [selection, setSelection] = useState<{
+    key: string;
+    ids: string[];
+  } | null>(null);
   const ids = new Set(records.map((record) => record.id));
   const history = useMeasurements(
     records.map((record) => record.id),
@@ -96,16 +100,42 @@ export function Comparison({
       train_seconds: "training seconds",
       environment_steps: "environment transitions",
     }[axis] ?? axis;
-  const chosenIds = [...new Set(points.map((sample) => sample.recordId))].slice(
-    -4,
+  const measuredIds = new Set(matching.map((sample) => sample.recordId));
+  const candidates = records
+    .filter((record) => measuredIds.has(record.id))
+    .sort(
+      (a, b) =>
+        a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+    );
+  const training = candidates.filter(
+    (record) => record.metadata.stage === "train",
   );
-  const series = chosenIds.map((id, index) => ({
-    record: records.find((record) => record.id === id)!,
-    color: colors[index],
-    points: points
-      .filter((point) => point.recordId === id)
-      .sort((a, b) => a.step - b.step),
-  }));
+  const defaults = (training.length ? training : candidates)
+    .slice(-4)
+    .map((record) => record.id);
+  const requestedIds = selection?.key === key ? selection.ids : defaults;
+  const availableIds = requestedIds.filter((id) => measuredIds.has(id));
+  const chosenIds =
+    requestedIds.length > 0 && availableIds.length === 0
+      ? defaults
+      : availableIds;
+  const series = chosenIds
+    .map((id, index) => ({
+      record: records.find((record) => record.id === id)!,
+      color: colors[index],
+      points: points
+        .filter((point) => point.recordId === id)
+        .sort((a, b) => a.step - b.step),
+    }))
+    .filter((line) => line.points.length > 0);
+  const displayedPointCount = series.reduce(
+    (total, line) => total + line.points.length,
+    0,
+  );
+  const selectedPointCount = matching.filter((point) =>
+    chosenIds.includes(point.recordId),
+  ).length;
+  const missingCoordinates = selectedPointCount - displayedPointCount;
   const values = series.flatMap((line) => line.points);
   const minY = values.reduce(
     (minimum, point) => Math.min(minimum, point.value),
@@ -160,6 +190,39 @@ export function Comparison({
         )
       }
     >
+      {candidates.length > 1 && (
+        <details {...stylex.props(s.cardBody)}>
+          <summary>Choose runs · {chosenIds.length} selected</summary>
+          <div {...stylex.props(s.form)}>
+            {candidates.map((record) => (
+              <label key={record.id} {...stylex.props(s.row)}>
+                <input
+                  type="checkbox"
+                  checked={chosenIds.includes(record.id)}
+                  disabled={
+                    chosenIds.length >= 4 && !chosenIds.includes(record.id)
+                  }
+                  onChange={(event) =>
+                    setSelection({
+                      key,
+                      ids: event.target.checked
+                        ? [...chosenIds, record.id]
+                        : chosenIds.filter((id) => id !== record.id),
+                    })
+                  }
+                />
+                {record.title}
+              </label>
+            ))}
+            <button
+              {...stylex.props(s.button)}
+              onClick={() => setSelection(null)}
+            >
+              Use latest training runs
+            </button>
+          </div>
+        </details>
+      )}
       {history.error && (
         <div {...stylex.props(s.cardBody)}>
           Measurement refresh failed. Showing retained observations.{" "}
@@ -270,8 +333,8 @@ export function Comparison({
             </tbody>
           </table>
           <p {...stylex.props(s.muted)}>
-            {matching.length - points.length > 0 &&
-              `${matching.length - points.length} points lack the selected coordinate. `}
+            {missingCoordinates > 0 &&
+              `${missingCoordinates} selected points lack the selected coordinate. `}
             Large curves retain endpoints and bucket extrema. Same metric,
             cohort, unit, and direction. Showing {series.length} of{" "}
             {new Set(points.map((point) => point.recordId)).size} series.{" "}
