@@ -154,9 +154,44 @@ test("measurement batches are atomic and briefs retain conflicting evidence", ()
         links: [{ target: "run", relation: "contradicts" }],
       },
     });
+    send({
+      type: "record.create",
+      record: {
+        id: "experiment",
+        projectId: "project",
+        kind: "experiment",
+        title: "Longer history experiment",
+      },
+    });
+    send({
+      type: "record.create",
+      record: {
+        id: "hypothesis",
+        projectId: "project",
+        kind: "note",
+        title: "Compare matching conditions",
+        links: [{ target: "experiment", relation: "related" }],
+      },
+    });
+    for (let index = 0; index < 40; index++) {
+      send({
+        type: "record.create",
+        record: {
+          id: `stage-${index}`,
+          projectId: "project",
+          kind: "run",
+          title: `Stage ${index}`,
+          links: [{ target: "experiment", relation: "related" }],
+        },
+      });
+    }
     const brief = contextBrief(store.snapshot(), "project", "history");
     assert.equal(brief.findings[0].id, "finding");
     assert.equal(brief.findings[0].links[0].relation, "contradicts");
+    for (const id of ["experiment", "hypothesis", "run"]) {
+      assert.ok(brief.other.some((record) => record.id === id));
+    }
+    assert.deepEqual(brief.omitted, { findings: 0, active: 0, other: 13 });
     assert.equal(store.samples("run", 0).length, 1);
   } finally {
     db.close();

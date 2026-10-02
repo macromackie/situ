@@ -9,6 +9,7 @@ import { RelatedRecords } from "./dashboard";
 import { Comparison } from "./charts";
 import { ArtifactTable } from "./artifact-table";
 import { ExperimentFlow, RunOutcome } from "./experiment-flow";
+import { EvaluationOutcomes } from "./evaluation-outcomes";
 
 export function Detail() {
   const { projectId, recordId } = useParams({ strict: false });
@@ -54,6 +55,19 @@ export function Detail() {
         item.links.some((link) => link.target === record.id)),
   );
   const linkedRuns = related.filter((item) => item.kind === "run");
+  const outcomeExperiments = [
+    record,
+    ...related.filter((item) => item.kind === "experiment"),
+  ];
+  const outcomeExperimentIds = new Set(
+    outcomeExperiments.map((item) => item.id),
+  );
+  const outcomeRuns = snapshot.records.filter(
+    (item) =>
+      item.projectId === projectId &&
+      item.kind === "run" &&
+      item.links.some((link) => outcomeExperimentIds.has(link.target)),
+  );
   const comments = related.filter((item) => item.kind === "note");
   const parents: ResearchRecord[] = [];
   let node: ResearchRecord | undefined = record;
@@ -104,6 +118,13 @@ export function Detail() {
             ))}
           </div>
         </section>
+      )}
+      {record.kind === "experiment" && (
+        <EvaluationOutcomes
+          key={record.id}
+          records={[...outcomeExperiments, ...outcomeRuns]}
+          samples={snapshot.samples}
+        />
       )}
       {record.artifacts
         .filter((artifact) => artifact.format === "table/v1")

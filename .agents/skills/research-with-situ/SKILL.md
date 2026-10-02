@@ -16,6 +16,7 @@ Use `pnpm situ schema` for the current executable schema rather than reconstruct
 
 Begin with `pnpm situ context PROJECT_ID relevant terms`. Read full linked records, including negative results and
 counterevidence, before treating the brief as a conclusion. Its excerpts are bounded and mechanically selected.
+Inspect omission counts and shorten an empty keyword query. A brief is a starting point for reading linked records.
 
 An experiment can start as a title and a short description. Keep its distinguishing variable and comparison clear.
 Use independent records for parallel alternatives. A `derived_from` link preserves the parent revision used.
@@ -34,6 +35,8 @@ Tags can express phases or research themes without imposing a universal pipeline
 For metrics, keep comparison conditions explicit in `cohort`. Distinguish seeds/runs and use a new cohort when the
 dataset, grader, game version, or evaluation conditions change. Give unlike objectives distinct metric names.
 Record same-step compute coordinates when update counts are not comparable. Qualitative research needs no invented scores.
+Use the evaluation outcomes panel to select individual final runs and an exact metric/cohort. A shared experiment can
+contain several methods; grouping all its runs into one average can hide the comparison it was designed to test.
 
 ## Safe concurrent writes
 

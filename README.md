@@ -21,7 +21,8 @@ Stop with Ctrl-C. Rebuild and restart after source changes. The same data direct
 restarts and factory/product checkouts. Run only one server per data directory.
 
 All records, saved revisions, and measurements are local in celld's `.celld/dev` below the data directory.
-Artifact entries reference existing files or URLs; Situ does not copy or verify those bytes yet.
+Artifact entries reference existing files or URLs. Situ verifies bounded `table/v1` previews against their recorded
+SHA-256 when opened; it does not copy artifact storage into the database.
 Stop the service before copying its complete data directory for a physical backup. Never use celld's `--clean` on research data.
 
 The server binds to loopback and checks request host and browser origin. It is a trusted, single-user local app,
@@ -41,6 +42,9 @@ pnpm situ changes 0 RECORD_ID
 Commands require explicit `requestId` and `actor` fields. Retry uncertain writes with exactly the same command and ID.
 Updates require the observed `revision`; a 409 means read and reconcile before submitting another command.
 See [docs/api.md](docs/api.md) and the [research skill](.agents/skills/research-with-situ/SKILL.md).
+
+Experiment pages show linked batches and their individual evaluation outcomes. Choose runs and an exact metric/cohort
+to compare them; different methods inside one experiment stay separate. Tables link back to saved checkpoint revisions.
 
 ## Development
 

@@ -53,8 +53,19 @@ export function useMeasurements(ids: string[], initial: Sample[]) {
   useEffect(() => {
     refresh.current();
   }, [key, snapshot?.cursor]);
+  let samples = initial;
+  if (loaded?.key === key) {
+    samples = loaded.samples;
+  } else if (loaded) {
+    samples = [
+      ...new Map(
+        [...loaded.samples, ...initial].map((sample) => [sample.id, sample]),
+      ).values(),
+    ];
+  }
   return {
-    samples: loaded?.key === key ? loaded.samples : initial,
+    samples,
+    complete: loaded?.key === key,
     error,
     retry: () => refresh.current(),
   };

@@ -7,6 +7,7 @@ import { styles as s } from "./styles";
 import { Badge, Card, Editor, RecordLink, time } from "./ui";
 import { ExperimentFlow, RunOutcome } from "./experiment-flow";
 import { Comparison } from "./charts";
+import { EvaluationOutcomes } from "./evaluation-outcomes";
 
 export function Home() {
   const { snapshot } = useResearch();
@@ -173,6 +174,11 @@ export function Dashboard() {
           </div>
         ))}
       </div>
+      <EvaluationOutcomes
+        key={project.id}
+        records={records}
+        samples={snapshot.samples}
+      />
       <div {...stylex.props(s.grid)}>
         <Comparison records={comparison} samples={snapshot.samples} />
         <Card

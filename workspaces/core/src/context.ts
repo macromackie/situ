@@ -16,20 +16,26 @@ export function contextBrief(
         .includes(term),
     ),
   );
-  const relevant = new Set(matches.map((record) => record.id));
+  const matchedIds = new Set(matches.map((record) => record.id));
+  const relevant = new Set(matchedIds);
   for (const record of projectRecords) {
     for (const link of record.links) {
-      if (
-        matches.some(
-          (match) => match.id === record.id || match.id === link.target,
-        )
-      ) {
+      if (matchedIds.has(record.id) || matchedIds.has(link.target)) {
         relevant.add(record.id);
         relevant.add(link.target);
       }
     }
   }
-  const records = projectRecords.filter((record) => relevant.has(record.id));
+  const records = projectRecords
+    .filter((record) => relevant.has(record.id))
+    .sort((a, b) => {
+      if (a.kind === "run" && b.kind !== "run") return 1;
+      if (a.kind !== "run" && b.kind === "run") return -1;
+      const aMatches = matchedIds.has(a.id);
+      const bMatches = matchedIds.has(b.id);
+      if (aMatches !== bMatches) return aMatches ? -1 : 1;
+      return b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id);
+    });
   const summarize = (record: ResearchRecord) => ({
     id: record.id,
     kind: record.kind,
@@ -43,25 +49,24 @@ export function contextBrief(
     links: record.links,
     artifacts: record.artifacts,
   });
+  const findings = records.filter((record) => record.kind === "finding");
+  const active = records.filter((record) => record.state === "active");
+  const other = records.filter(
+    (record) => record.kind !== "finding" && record.state !== "active",
+  );
   return {
     project: snapshot.projects.find((project) => project.id === projectId),
     cursor: snapshot.cursor,
     query,
     totalRelevant: records.length,
-    findings: records
-      .filter((record) => record.kind === "finding")
-      .slice(-30)
-      .map(summarize),
-    active: records
-      .filter((record) => record.state === "active")
-      .slice(-30)
-      .map(summarize),
-    other: records
-      .filter(
-        (record) => record.kind !== "finding" && record.state !== "active",
-      )
-      .slice(-30)
-      .map(summarize),
+    findings: findings.slice(0, 30).map(summarize),
+    active: active.slice(0, 30).map(summarize),
+    other: other.slice(0, 30).map(summarize),
+    omitted: {
+      findings: Math.max(0, findings.length - 30),
+      active: Math.max(0, active.length - 30),
+      other: Math.max(0, other.length - 30),
+    },
     note: "Source excerpts, not an inferred consensus. Follow evidence links; omitted records remain available in the snapshot.",
   };
 }

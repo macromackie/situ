@@ -100,7 +100,9 @@ Read a snapshot, subscribe, and catch up from its cursor. Refresh a snapshot and
 Keep the existing view usable while refreshing. Revisions and journal entries are retained.
 
 Context retrieval uses lexical matching plus one connection hop. It returns source excerpts and truncation information,
-not generated consensus. Follow full records and counterevidence before acting.
+not generated consensus. Each section prioritizes research records before runs, then direct query matches and recent
+updates. The `omitted` object counts excluded records separately for `findings`, `active`, and `other`; each section
+returns at most 30 records. Follow full records and counterevidence before acting.
 
 Failures contain `{ "error": { "message": "...", "requestId": "..." } }`.
 Statuses: 400 invalid JSON/cursor; 404 missing record; 409 conflict; 413 command size; 422 schema/link violation.
