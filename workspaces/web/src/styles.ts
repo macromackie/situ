@@ -42,6 +42,16 @@ export const styles = stylex.create({
     color: "#18202b",
     textDecoration: "none",
   },
+  sidebarHead: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  navigationToggle: {
+    display: { default: "none", "@media (max-width: 760px)": "block" },
+  },
+  navigationCollapsed: { "@media (max-width: 760px)": { display: "none" } },
   brandIcon: {
     width: 25,
     height: 25,

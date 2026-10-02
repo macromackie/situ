@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   createRootRoute,
@@ -19,14 +19,33 @@ import "./base.css";
 function Shell() {
   const { snapshot, connection, error } = useResearch();
   const { projectId } = useParams({ strict: false });
+  const [showNavigation, setShowNavigation] = useState(false);
   return (
     <div {...stylex.props(s.shell)}>
       <aside {...stylex.props(s.sidebar)}>
-        <Link to="/" {...stylex.props(s.brand)}>
-          <span {...stylex.props(s.brandIcon)}>s</span>situ
-        </Link>
-        <nav {...stylex.props(s.nav)} aria-label="Workspace">
-          <Link to="/" {...stylex.props(s.navLink, !projectId && s.selected)}>
+        <div {...stylex.props(s.sidebarHead)}>
+          <Link to="/" {...stylex.props(s.brand)}>
+            <span {...stylex.props(s.brandIcon)}>s</span>situ
+          </Link>
+          <button
+            {...stylex.props(s.button, s.navigationToggle)}
+            aria-expanded={showNavigation}
+            aria-controls="workspace-navigation"
+            onClick={() => setShowNavigation(!showNavigation)}
+          >
+            {showNavigation ? "Hide projects" : "Show projects"}
+          </button>
+        </div>
+        <nav
+          id="workspace-navigation"
+          {...stylex.props(s.nav, !showNavigation && s.navigationCollapsed)}
+          aria-label="Workspace"
+        >
+          <Link
+            to="/"
+            {...stylex.props(s.navLink, !projectId && s.selected)}
+            onClick={() => setShowNavigation(false)}
+          >
             ▦ All projects
           </Link>
           <div {...stylex.props(s.eyebrow)} style={{ margin: "20px 10px 8px" }}>
@@ -37,6 +56,7 @@ function Shell() {
               key={project.id}
               to="/projects/$projectId"
               params={{ projectId: project.id }}
+              onClick={() => setShowNavigation(false)}
               {...stylex.props(
                 s.navLink,
                 project.id === projectId && s.selected,

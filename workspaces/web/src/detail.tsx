@@ -106,6 +106,11 @@ export function Detail() {
           Edit record
         </button>
       </header>
+      {record.body && (
+        <section {...stylex.props(s.section)}>
+          <RecordNotes key={record.id} record={record} />
+        </section>
+      )}
       {parents.length > 1 && (
         <section {...stylex.props(s.section)}>
           <div {...stylex.props(s.eyebrow)}>Primary lineage</div>
@@ -119,7 +124,7 @@ export function Detail() {
           </div>
         </section>
       )}
-      {record.kind === "experiment" && (
+      {(record.kind === "experiment" || record.kind === "finding") && (
         <EvaluationOutcomes
           key={record.id}
           records={[...outcomeExperiments, ...outcomeRuns]}
@@ -140,26 +145,11 @@ export function Detail() {
       />
       <div {...stylex.props(s.grid)}>
         <div>
-          <section {...stylex.props(s.section)}>
-            <Card
-              title={
-                record.kind === "question"
-                  ? "Current understanding"
-                  : "Research notes"
-              }
-            >
-              <div {...stylex.props(s.cardBody, s.prose)}>
-                {record.body || "No notes yet."}
-              </div>
-              {record.tags.length > 0 && (
-                <div {...stylex.props(s.cardBody, s.row)}>
-                  {record.tags.map((tag) => (
-                    <Badge key={tag} state={tag} />
-                  ))}
-                </div>
-              )}
-            </Card>
-          </section>
+          {!record.body && (
+            <section {...stylex.props(s.section)}>
+              <RecordNotes key={record.id} record={record} />
+            </section>
+          )}
           {(record.kind === "run" ||
             linkedRuns.length > 0 ||
             snapshot.samples.some(
@@ -335,3 +325,48 @@ export function Detail() {
     </>
   );
 }
+
+function RecordNotes({ record }: { record: ResearchRecord }) {
+  const separator = /\n\s*\n/.exec(record.body);
+  const opening = separator
+    ? record.body.slice(0, separator.index)
+    : record.body;
+  const remainder = separator
+    ? record.body.slice(separator.index + separator[0].length)
+    : "";
+  const title =
+    record.kind === "finding"
+      ? "Finding"
+      : record.kind === "question"
+        ? "Current understanding"
+        : "Research notes";
+  return (
+    <Card title={title}>
+      <div {...stylex.props(s.cardBody, notes.content)}>
+        <div {...stylex.props(s.prose)}>{opening || "No notes yet."}</div>
+        {remainder && (
+          <details>
+            <summary>
+              {record.kind === "finding"
+                ? "Read full finding"
+                : "Read full notes"}
+            </summary>
+            <div {...stylex.props(s.prose, notes.remainder)}>{remainder}</div>
+          </details>
+        )}
+        {record.tags.length > 0 && (
+          <div {...stylex.props(s.row)}>
+            {record.tags.map((tag) => (
+              <Badge key={tag} state={tag} />
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+const notes = stylex.create({
+  content: { display: "flex", flexDirection: "column", gap: 14 },
+  remainder: { marginTop: 14 },
+});

@@ -38,7 +38,6 @@ export function ExperimentFlow({
             .map((link) => context.find((record) => record.id === link.target))
             .find((record) => record && record.metadata.attempt !== attempt);
           const phase = stages[0].metadata.phase;
-          const method = train?.metadata.method;
           return (
             <div key={attempt} {...stylex.props(s.item)}>
               <div {...stylex.props(s.row)}>
@@ -46,8 +45,8 @@ export function ExperimentFlow({
                   {train?.title.replace(/ · train$/, "") ?? stages[0].title}
                 </strong>
                 {typeof phase === "string" && <Badge state={phase} />}
-                {typeof method === "string" && <Badge state={method} />}
               </div>
+              <RunAttribution record={train ?? stages[0]} />
               <div {...stylex.props(s.muted)} style={{ marginTop: 8 }}>
                 {input ? (
                   <>
@@ -93,6 +92,47 @@ export function ExperimentFlow({
   );
 }
 
+export function RunAttribution({ record }: { record: ResearchRecord }) {
+  const {
+    method,
+    seed,
+    parent_method,
+    parent_seed,
+    parent_title,
+    parent_attempt,
+  } = record.metadata;
+  const current: string[] = [];
+  if (typeof method === "string") current.push(`Method ${method}`);
+  if (typeof seed === "number" || typeof seed === "string")
+    current.push(`seed ${seed}`);
+  const parent: string[] = [];
+  if (typeof parent_method === "string") parent.push(parent_method);
+  if (typeof parent_seed === "number" || typeof parent_seed === "string")
+    parent.push(`seed ${parent_seed}`);
+  const hasParentDetails =
+    typeof parent_title === "string" || typeof parent_attempt === "string";
+  if (!current.length && !parent.length && !hasParentDetails) return null;
+  const parentLabel = ["Immediate parent", ...parent].join(" · ");
+  return (
+    <div {...stylex.props(s.muted, flow.attribution)}>
+      {current.length > 0 && <div>{current.join(" · ")}</div>}
+      {hasParentDetails ? (
+        <details>
+          <summary>{parentLabel}</summary>
+          <div {...stylex.props(flow.parent)}>
+            {typeof parent_title === "string" && <div>{parent_title}</div>}
+            {typeof parent_attempt === "string" && (
+              <div {...stylex.props(s.mono)}>{parent_attempt}</div>
+            )}
+          </div>
+        </details>
+      ) : (
+        parent.length > 0 && <div>{parentLabel}</div>
+      )}
+    </div>
+  );
+}
+
 export function RunOutcome({ record }: { record: ResearchRecord }) {
   const { outcome, gate, error } = record.metadata;
   return (
@@ -107,6 +147,14 @@ export function RunOutcome({ record }: { record: ResearchRecord }) {
 }
 
 const flow = stylex.create({
+  attribution: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 5,
+    marginTop: 5,
+    overflowWrap: "anywhere",
+  },
+  parent: { display: "flex", flexDirection: "column", gap: 5, marginTop: 8 },
   stages: { display: "flex", flexWrap: "wrap", gap: 12, marginTop: 14 },
   stage: {
     flex: "1 1 160px",

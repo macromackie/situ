@@ -107,7 +107,7 @@ export class Research {
         try {
           socket.send(JSON.stringify({ cursor }));
         } catch {
-          socket.close(1011, "Reconnect to catch up");
+          socket.close(4000, "Reconnect to catch up");
         }
       }
       return json(change);
@@ -143,9 +143,6 @@ export class Research {
   }
   webSocketMessage(socket: WebSocket) {
     socket.send(JSON.stringify({ cursor: this.store.cursor() }));
-  }
-  webSocketClose(socket: WebSocket, code: number) {
-    socket.close(code, "Closed");
   }
 }
 

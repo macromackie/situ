@@ -2,7 +2,7 @@ import * as stylex from "@stylexjs/stylex";
 import { useEffect, useState } from "react";
 import type { ResearchRecord, Sample } from "../../core/src/index";
 import { useMeasurements } from "./measurements";
-import { RunOutcome } from "./experiment-flow";
+import { RunAttribution, RunOutcome } from "./experiment-flow";
 import { styles as s } from "./styles";
 import { Badge, Card, RecordLink } from "./ui";
 
@@ -293,6 +293,7 @@ export function EvaluationOutcomes({
                   <tr key={record.id}>
                     <td {...stylex.props(outcomes.run)}>
                       <RecordLink record={record} />
+                      <RunAttribution record={record} />
                       {train && (
                         <div {...stylex.props(s.muted, outcomes.source)}>
                           Checkpoint: <RecordLink record={train} />

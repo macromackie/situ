@@ -11,7 +11,7 @@ export function contextBrief(
   );
   const matches = projectRecords.filter((record) =>
     terms.every((term) =>
-      `${record.title} ${record.body} ${record.tags.join(" ")}`
+      `${record.id} ${record.title} ${record.body} ${record.tags.join(" ")}`
         .toLowerCase()
         .includes(term),
     ),

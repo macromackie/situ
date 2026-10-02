@@ -99,7 +99,8 @@ Clients retry transient admission/network failures with bounded jittered delays 
 Read a snapshot, subscribe, and catch up from its cursor. Refresh a snapshot and catch up again after reconnecting.
 Keep the existing view usable while refreshing. Revisions and journal entries are retained.
 
-Context retrieval uses lexical matching plus one connection hop. It returns source excerpts and truncation information,
+Context retrieval matches words in record IDs, titles, bodies, and tags, then includes one connection hop. Pass a known
+record ID as `q` to retrieve its incoming and outgoing connections. It returns source excerpts and truncation information,
 not generated consensus. Each section prioritizes research records before runs, then direct query matches and recent
 updates. The `omitted` object counts excluded records separately for `findings`, `active`, and `other`; each section
 returns at most 30 records. Follow full records and counterevidence before acting.
