@@ -6,6 +6,14 @@ import {
 } from "../protocol/models.js";
 import { Context } from "./context.js";
 import { publicEntity, Service } from "./service.js";
+import {
+  publicationView,
+  draft,
+  currentRelease,
+  sourceBundles,
+  validatePublication,
+  changes,
+} from "./publication/index.js";
 export function read(
   service: Service,
   path: string,
@@ -26,6 +34,67 @@ export function read(
     (actor && actor !== "admin" ? actor.projectId : "");
   const context = actor ? new Context(db, actor, now) : null;
   const scope = (id: string) => context?.scope(id);
+  if (path.startsWith("/v1/publication/")) {
+    const parts = path.split("/");
+    if (parts[3] !== "projects" || !parts[4])
+      throw new Fault("not_found", "Specify a publication project", 404);
+    const projectId = parts[4];
+    scope(projectId);
+    db.get(projectId, "project");
+    const revision = params.has("revision")
+      ? Number(params.get("revision"))
+      : undefined;
+    requireThat(
+      revision === undefined ||
+        (Number.isSafeInteger(revision) && revision > 0),
+      "invalid_revision",
+      "Revision must be positive",
+      400,
+    );
+    if (parts[5] === "draft" || parts[5] === "validate") {
+      if (parts[5] === "draft") return draft(db, projectId);
+      const d = draft(db, projectId);
+      requireThat(d, "missing_draft", "No publication draft", 404);
+      return {
+        revision: d.revision,
+        issues: validatePublication(
+          db,
+          d,
+          sourceBundles(db, projectId, d),
+          now,
+          currentRelease(db, projectId)?.document,
+        ),
+      };
+    }
+    if (parts[5] === "changes") {
+      const after = Number(params.get("after") ?? 0);
+      requireThat(
+        Number.isSafeInteger(after) && after >= 0,
+        "bad_cursor",
+        "Invalid change cursor",
+        400,
+      );
+      return changes(db, projectId, after, limit);
+    }
+    const view = publicationView(
+      db,
+      projectId,
+      now,
+      revision,
+      params.get("draft") === "1",
+    );
+    if (parts[5] === "updates") return view.release?.document.updates ?? [];
+    if (parts[5] === "brief")
+      return {
+        project: view.project,
+        release: view.release?.revision ?? null,
+        pages: view.release?.document.pages.filter((p) => !p.archived) ?? [],
+        freshness: view.freshness,
+        changes: changes(db, projectId, view.freshness.through, limit),
+        sources: view.sources,
+      };
+    return view;
+  }
   const page = (items: any[]) => {
     const cursor = params.get("cursor");
     let after = "";
@@ -70,7 +139,7 @@ export function read(
   if (path === "/v1/status")
     return {
       workspaceId: service.workspaceId,
-      schema: 1,
+      schema: 2,
       version: "0.3.0",
       runtime: "celld 0.6.1",
       now,

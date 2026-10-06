@@ -12,3 +12,5 @@ You cannot accept your own candidate or work you owned. Do not join a second ide
 Use `review.decide` with accepted, needs_evidence, needs_correction or operational_failure and a short rationale tied to inspected evidence. Acceptance means the scoped claim is supported by this evidence; it is not universal truth or permission to scale compute. A negative result can be an accepted conclusion.
 
 A changed project policy invalidates the old review basis. Ask the author/coordinator to withdraw the pending candidate and submit a fresh one. Never silently reinterpret the original criterion. Use `review.challenge` for material contrary evidence against an accepted conclusion; keep the earlier decision and its scope available.
+
+Curated pages help orient a reader; inspect their pinned sources and current research records before deciding. If a published interpretation misstates the evidence, post the correction and let the curator reconcile it. Research acceptance stays in `review.decide`, separate from publication. A new artifact or challenge queues a coalesced curator obligation.

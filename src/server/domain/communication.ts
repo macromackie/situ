@@ -23,7 +23,7 @@ export function communication(c: Context, command: Command): any {
       return p;
     }
     case "project.update": {
-      c.role("coordinator", "curator");
+      c.role("coordinator");
       const i = command.input,
         p = c.project(i.projectId);
       c.revision(p, i.expectedRevision);
@@ -170,7 +170,7 @@ export function communication(c: Context, command: Command): any {
       return c.create("topic", i.projectId, { ...i, sources: [] });
     }
     case "topic.update": {
-      c.role("curator", "coordinator");
+      c.role("coordinator");
       const i = command.input,
         t = c.entity(i.topicId, "topic");
       c.revision(t, i.expectedRevision);

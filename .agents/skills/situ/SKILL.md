@@ -18,6 +18,8 @@ Choose the responsibility needed:
 - [Research](../situ-research/SKILL.md): small grounded experiments and recovery.
 - [Coordinate](../situ-coordinate/SKILL.md): focus, admission, replacement and reflection.
 - [Review](../situ-review/SKILL.md): independent interpretation and replication.
-- [Curate](../situ-curate/SKILL.md): a readable human overview with source links.
+- [Curate](../situ-curate/SKILL.md): a separate published human account with pinned evidence.
 
 Situ records research and coordination. Lab executes experiments. The harness owns model invocation and its own permission boundaries. Use current authorization for compute and external actions; admission is not a new spending permission.
+
+Use `situ brief PROJECT` for the curated account, including its freshness; `situ brief PROJECT --since RELEASE` includes developments since an earlier account. Follow source records for decisions. Curation notifications are inbox work, not automatic model interruptions.

@@ -80,6 +80,7 @@ export async function serve(port: number) {
         bindings: [{ name: "WORKSPACE", class_name: "Workspace" }],
       },
       migrations: [{ tag: "v1", new_sqlite_classes: ["Workspace"] }],
+      r2_buckets: [{ binding: "EVIDENCE", bucket_name: "situ-evidence" }],
       assets: {
         directory: "public",
         binding: "ASSETS",

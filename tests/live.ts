@@ -4,7 +4,7 @@ import { mkdtemp, rm, readFile, cp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createServer } from "node:net";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 const home = await mkdtemp(join(tmpdir(), "situ-live-"));
 const sock = createServer();
 await new Promise<void>((r) => sock.listen(0, "127.0.0.1", r));
@@ -122,6 +122,146 @@ try {
   const commandId = randomUUID(),
     body = { topicId: topic.id, body: "Before restart" };
   const post = await command("post.create", body, sessions[0].token, commandId);
+  const data = {
+    schema: "situ.dataset.v1",
+    metric: "success",
+    unit: "fraction",
+    direction: "higher",
+    cohortId: "live-v1",
+    evaluatorVersion: "eval1",
+    environmentVersion: "env1",
+    series: [
+      {
+        id: "baseline",
+        label: "Baseline",
+        seed: "1",
+        values: [
+          { scenario: "corridor", value: 0.5, n: 20, lower: 0.3, upper: 0.7 },
+        ],
+      },
+    ],
+  };
+  const file = join(home, "observations.json");
+  await writeFile(file, JSON.stringify(data));
+  const asset = await cli([
+    "asset",
+    "upload",
+    file,
+    "--project",
+    "live",
+    "--admin",
+  ]);
+  const repeatedAsset = await cli([
+    "asset",
+    "upload",
+    file,
+    "--project",
+    "live",
+    "--admin",
+  ]);
+  assert.equal(repeatedAsset.id, asset.id);
+  assert.deepEqual(await api("/v1/assets/" + asset.id), data);
+  const bytes = await readFile(file);
+  const range = await fetch(base + "/v1/assets/" + asset.id, {
+    headers: { Range: "bytes=0-9" },
+  });
+  assert.equal(range.status, 206);
+  assert.equal(await range.text(), bytes.subarray(0, 10).toString());
+  assert.equal(
+    (
+      await fetch(base + "/v1/assets/" + asset.id, {
+        headers: { Range: "bytes=999999-" },
+      })
+    ).status,
+    416,
+  );
+  const badUpload = await fetch(base + "/v1/assets", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + admin.token,
+      "X-Situ-Asset": encodeURIComponent(
+        JSON.stringify({
+          projectId: "live",
+          title: "Wrong hash",
+          mediaType: "application/json",
+          sha256: createHash("sha256").update("different").digest("hex"),
+        }),
+      ),
+    },
+    body: bytes,
+  });
+  assert.equal(badUpload.status, 400);
+  const captured = await cli(["publication", "capture", "live", "--admin"]);
+  const source = {
+    snapshotId: captured.id,
+    recordId: asset.id,
+    relationship: "supports",
+  };
+  const publication = {
+    schemaVersion: 1,
+    pages: [
+      {
+        id: "now",
+        template: "overview",
+        title: "Live proof account",
+        summary: {
+          text: "Synthetic observations demonstrate durable publication.",
+          sources: [source],
+        },
+        sections: [
+          {
+            id: "evidence",
+            blocks: [{ id: "chart", kind: "figure", figureId: "comparison" }],
+          },
+        ],
+      },
+    ],
+    updates: [],
+    figures: [
+      {
+        id: "comparison",
+        kind: "comparison",
+        title: "Synthetic comparison",
+        caption: "Test fixture only.",
+        sources: [source],
+        assetIds: [asset.id],
+        baseline: "baseline",
+      },
+    ],
+  };
+  const draftFile = join(home, "draft.json");
+  await writeFile(
+    draftFile,
+    JSON.stringify({
+      projectId: "live",
+      snapshotId: captured.id,
+      expectedRevision: captured.draftRevision,
+      baseRelease: 0,
+      document: publication,
+    }),
+  );
+  const saved = await cli([
+    "publication",
+    "save",
+    "--file",
+    draftFile,
+    "--admin",
+  ]);
+  assert.deepEqual(
+    (await cli(["publication", "validate", "live", "--admin"])).issues,
+    [],
+  );
+  await cli([
+    "publication",
+    "publish",
+    "live",
+    "--expected-revision",
+    String(saved.revision),
+    "--expected-release",
+    "0",
+    "--admin",
+  ]);
+  assert.equal((await cli(["brief", "live", "--admin"])).release, 1);
   await stop();
   await cli(["backup", home + "-snapshot"]);
   await cli(["restore", home + "-snapshot", "--cwd", home + "-restored"]);
@@ -130,6 +270,11 @@ try {
   });
   await start();
   assert.equal((await api("/v1/status")).workspaceId, status.workspaceId);
+  assert.equal(
+    (await api("/v1/publication/projects/live")).release.revision,
+    1,
+  );
+  assert.deepEqual(await api("/v1/assets/" + asset.id), data);
   assert.equal(
     (await command("post.create", body, sessions[0].token, commandId)).id,
     post.id,
@@ -333,11 +478,16 @@ try {
   await cp(join(home, "backup"), join(home, "runtime"), { recursive: true });
   await start();
   assert.equal(
+    (await api("/v1/publication/projects/live")).release.revision,
+    1,
+  );
+  assert.deepEqual(await api("/v1/assets/" + asset.id), data);
+  assert.equal(
     (await api("/v1/topics/" + topic.id + "/posts")).items[0].id,
     post.id,
   );
   console.log(
-    "Live celld 0.6.1: 30 sessions, restart, exact retry, observer assets, origin check, and snapshot restore passed.",
+    "Live celld 0.6.1: 30 sessions, publication CLI, hashed R2 assets, range reads, restart, exact retry, origin check, and snapshot restore passed.",
   );
 } finally {
   await stop();

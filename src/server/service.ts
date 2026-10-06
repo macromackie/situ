@@ -12,6 +12,7 @@ import { Context } from "./context.js";
 import { communication } from "./domain/communication.js";
 import { work } from "./domain/work.js";
 import { researchEvidence } from "./domain/evidence.js";
+import { publication, queueCuration } from "./publication/index.js";
 export interface Keys {
   admin: string;
   join: string;
@@ -111,6 +112,8 @@ export class Service {
           "This session has left",
           401,
         );
+        if (/^(work|topic|review|job)\./.test(command.type))
+          c.role("worker", "reviewer", "coordinator");
       }
       let result: any;
       if (command.type === "session.join") {
@@ -131,6 +134,7 @@ export class Service {
         result = { ...result, tokenHash: undefined };
       } else {
         result =
+          publication(c, command) ??
           communication(c, command) ??
           work(c, command) ??
           researchEvidence(c, command, runnerSecret);
@@ -140,7 +144,8 @@ export class Service {
       if (
         !["session.heartbeat", "inbox.read", "job.progress"].includes(
           command.type,
-        )
+        ) ||
+        (command.type === "job.progress" && command.input.status !== "running")
       ) {
         const project =
           result.projectId ??
@@ -165,6 +170,13 @@ export class Service {
             result.workId ??
             ("workId" in command.input ? command.input.workId : undefined),
         });
+        if (/^(project|topic|post|work|job|review)\./.test(command.type))
+          queueCuration(c, project);
+        if (
+          command.type === "session.grant" &&
+          command.input.roles.includes("curator")
+        )
+          queueCuration(c, result.projectId);
       }
       const receipt = {
         commandId: command.id,
@@ -238,8 +250,14 @@ export class Service {
       }
       for (const job of this.db
         .all("job")
-        .filter((j) => j.status === "running" && c.now - j.lastSeen > 120000))
+        .filter((j) => j.status === "running" && c.now - j.lastSeen > 120000)) {
         c.update(job, { status: "unknown" });
+        c.event(job.projectId, "job.unknown", job.id, {
+          workId: job.workId,
+          title: "Runner stopped reporting",
+        });
+        queueCuration(c, job.projectId);
+      }
     });
   }
   nextAlarm(): number | undefined {

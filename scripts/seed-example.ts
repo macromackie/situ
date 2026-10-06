@@ -1,8 +1,9 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { join } from "node:path";
-import { writeFile } from "node:fs/promises";
+import { writeFile, readFile } from "node:fs/promises";
 import { json, command, runtime, home } from "../src/cli/connection.js";
 import { artifact } from "../src/cli/operations.js";
+import { exampleView, observations } from "../stories/fixtures.js";
 if (!process.env.SITU_HOME)
   throw new Error("Set SITU_HOME to a disposable example runtime");
 const admin = await json(join(runtime, "admin.json"));
@@ -180,6 +181,73 @@ await command(
     brief:
       "The baseline branch is complete in this synthetic fixture. One follow-up separates memory retention from navigation difficulty. The next useful evidence is a matched delay comparison, followed by independent replication.",
     sources: [w.id, active.id],
+  },
+  members[0],
+);
+const replacements: Record<string, string> = {
+  baseline_work: w.id,
+  followup_work: active.id,
+};
+for (const [id, model] of Object.entries(exampleView.assets)) {
+  const bytes =
+    id === "dataset"
+      ? Buffer.from(JSON.stringify(observations))
+      : await readFile(`stories/assets/v1/assets/${id}`);
+  const input = {
+    projectId: "example",
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    title: model.title,
+    mediaType: model.mediaType,
+    ...(model.replay ? { replay: model.replay } : {}),
+  };
+  const response = await fetch(admin.endpoint + "/v1/assets", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + members[3].token,
+      "X-Situ-Asset": encodeURIComponent(JSON.stringify(input)),
+    },
+    body: bytes,
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(JSON.stringify(result));
+  replacements[id] = result.id;
+}
+const source = await command(
+  "publication.capture",
+  { projectId: "example" },
+  members[3],
+);
+replacements.snapshot = source.id;
+function replace(value: any): any {
+  if (typeof value === "string") return replacements[value] ?? value;
+  if (Array.isArray(value)) return value.map(replace);
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [key, replace(child)]),
+    );
+  return value;
+}
+const document = replace(exampleView.release!.document);
+document.updates.forEach((u: any, i: number) => {
+  u.occurredAt = Date.now() - (document.updates.length - i) * 1000;
+});
+const saved = await command(
+  "publication.save",
+  {
+    projectId: "example",
+    expectedRevision: source.draftRevision,
+    baseRelease: 0,
+    snapshotId: source.id,
+    document,
+  },
+  members[3],
+);
+await command(
+  "publication.publish",
+  {
+    projectId: "example",
+    expectedRevision: saved.revision,
+    expectedRelease: 0,
   },
   members[3],
 );

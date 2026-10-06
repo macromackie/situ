@@ -18,7 +18,18 @@ import { serve } from "./serve.js";
 import { supervise } from "../agent/bridge.js";
 import { run, inspectRun, recoverRun } from "../integrations/lab.js";
 import { stop, backup, restore, artifact } from "./operations.js";
+import { publicationCli } from "./publication.js";
+import { assetCli } from "./assets.js";
 const help = `Situ — durable research coordination\n
+  situ publication capture PROJECT [--after SEQ]
+  situ publication save --file INPUT
+  situ publication show PROJECT [--draft | --revision N]
+  situ publication validate PROJECT
+  situ publication publish PROJECT --expected-revision N --expected-release N
+  situ publication archive PROJECT --page ID --reason TEXT --expected-revision N --expected-release N
+  situ asset upload FILE --project PROJECT [--file METADATA]
+  situ asset retry UPLOAD_ID
+  situ brief PROJECT [--since RELEASE]
   situ serve [--port 4317]           Local celld 0.6.1 service
   situ stop                         Stop the verified local service process
   situ backup DIRECTORY             Snapshot a stopped service and client state
@@ -82,6 +93,13 @@ async function main() {
       lab: { type: "string" },
       timeout: { type: "string" },
       help: { type: "boolean" },
+      draft: { type: "boolean" },
+      revision: { type: "string" },
+      since: { type: "string" },
+      "expected-revision": { type: "string" },
+      "expected-release": { type: "string" },
+      page: { type: "string" },
+      reason: { type: "string" },
     },
   });
   const [verb, sub, id] = args.positionals,
@@ -172,6 +190,11 @@ async function main() {
     return;
   }
   const c = await credentials(!!o.admin);
+  if (await publicationCli(verb, sub, id, o, c)) return;
+  if (verb === "asset") {
+    await assetCli(sub, id, o, c);
+    return;
+  }
   const data = async () => (o.file ? json(resolve(o.file)) : {});
   if (verb === "agent") {
     await supervise(c, passthrough);

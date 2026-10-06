@@ -3,11 +3,13 @@ import { Service } from "./service.js";
 import { read } from "./reads.js";
 import { commandSchemas } from "../protocol/commands.js";
 import { Fault } from "../protocol/models.js";
+import { assets, type AssetBucket } from "./assets/index.js";
 interface Env {
   WORKSPACE: any;
   ASSETS: { fetch(r: Request): Promise<Response> };
   ADMIN_TOKEN: string;
   JOIN_TOKEN: string;
+  EVIDENCE: AssetBucket;
 }
 export class Workspace {
   service: Service;
@@ -41,6 +43,11 @@ export class Workspace {
       const url = new URL(request.url);
       const token =
         request.headers.get("authorization")?.replace(/^Bearer /, "") ?? "";
+      if (
+        url.pathname === "/v1/assets" ||
+        url.pathname.startsWith("/v1/assets/")
+      )
+        return await assets(request, this.service, this.env.EVIDENCE, token);
       if (request.method === "POST" && url.pathname === "/v1/commands") {
         const body = await request.text();
         if (body.length > 1024 * 1024)

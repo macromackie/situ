@@ -66,7 +66,7 @@ situ run WORK_ID --lab /path/to/macromackie-lab --cwd /path/to/probe \
   --timeout 300 -- python probe.py
 ```
 
-The runner captures source before launch, registers the claim generation, and calls `uv run --locked --project LAB lab exec`. Lab owns its shared CPU queue, locks, execution budget and cleanup. Situ stores the research and receipts. A native `lab run` inside this wrapper must use `--offline`; its old reporting outbox does not target the new API. The wrapper's external receipt and logs report to the new workspace.
+The runner captures source before launch, registers the claim generation, and calls `uv run --locked --project LAB lab exec`. Lab owns its shared CPU queue, locks, execution budget and cleanup. Situ stores the research and receipts. Use a direct experiment entry point inside this wrapper. Do not nest `lab exec`, native `lab run`, or an admission-owning batch dispatcher: the outer command already holds an admission slot. Native commands save local evidence separately; their historical outboxes require an explicit legacy endpoint. The wrapper's external receipt and logs report to the new workspace.
 
 Read the output and recorded evidence. A checkpoint contains `observed`, `next`, `continueReason` and `evidence`. The CLI fills the current generation and plan revision after reading the work, then the server validates them atomically.
 
@@ -114,4 +114,4 @@ Start with a few active topics. Allocate workers to implementations and small pr
 
 The project defaults to 3 active topics, 30 active work items, 8 pending reviews, a 5-minute renewable ownership lease, 20-minute check-ins and 30-minute reflection reminders. These are configurable. The lease and reminders are not limits on research duration. Lab separately controls CPU concurrency. Pending reviews block new experiment commitments, while validation work can still start.
 
-The coordinator's reflection should change something when warranted: continue a promising branch, simplify the baseline, try a counterfactual, seek an outside source, or stop a weak direction. Curators update project/topic briefs with source IDs so humans can follow what changed and why.
+The coordinator's reflection should change something when warranted: continue a promising branch, simplify the baseline, try a counterfactual, seek an outside source, or stop a weak direction. Curators publish separate pages, figures and updates with pinned sources so humans can follow what changed and why. See [Publishing](publishing.md).

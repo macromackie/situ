@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { publicationInputs } from "./publication/index.js";
 
 const id = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,95}$/);
 const text = z.string().trim().min(1).max(24000);
@@ -37,6 +38,7 @@ const plan = z
   .strict();
 const held = { workId: id, generation: revision };
 export const inputs = {
+  ...publicationInputs,
   "project.create": z
     .object({
       id,

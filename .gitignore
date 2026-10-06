@@ -3,3 +3,4 @@ dist/
 .celld/
 .dev.vars
 *.log
+storybook-static/

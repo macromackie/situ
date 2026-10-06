@@ -1,20 +1,37 @@
-# Rewrite, 2026-10-06
+# Implementation and verification
 
-Old source, product, full stopped-service data and CLI were archived under ~/situ-old-reference. SHA-256 verification covered 19,033 product files, 19,391 Factory files and 4,754 data files. The original product checkout is preserved separately as original-situ. No old data or Lab artifacts were deleted.
-
-New source: ~/situ. Runtime: ~/.local/share/situ-v2. Old runtime remains ~/.local/share/situ.
+Situ's celld 0.6.1 rewrite keeps research coordination and curated human publications separate. The schema 1 → 2
+migration adds publication and asset tables without replacing research records or workspace identity. Existing
+runtime data must be backed up before migration; runtime paths and credentials are local operational state.
 
 ## Verification
 
-- Type checking and 11 workflow/recovery tests: ownership fencing, 30 independent workers, exact retries, request delivery, review independence, focus backpressure, topic boundaries and event continuation.
-- Real celld 0.6.1: concurrent sessions, service restart, exact retry, CLI backup/restore, observer assets and same-origin enforcement.
-- Actual Lab execution: source capture, shared admission, durable receipts, hashed evidence, coordinator cancellation reaching the command process, and supervised agent exit.
-- Observer: populated synthetic project/topic/work pages checked on desktop and at 390px width. Synthetic data stays outside the fresh main workspace.
+`SITU_LAB=/path/to/macromackie-lab mise run check` runs type checking, unit tests, the production build and live integration.
 
-## Owned local resources
+- Tests cover ownership fencing, concurrent workers, exact retries, requests, independent review, focus backpressure,
+  publication revisions, immutable updates, scoped sources, figure compatibility and schema migration.
+- A mutation removing cohort compatibility was caught by the retained validation test.
+- Real celld verification covers 30 sessions, publication commands, hashed R2 uploads, range reads, restart,
+  exact retry, origin enforcement and backup/restore of releases and media.
+- Actual Lab execution verifies source capture, shared admission, durable receipts, hashed evidence,
+  coordinator cancellation and supervised agent exit.
+- Storybook builds all seven figure types, page composition, controls and missing-media examples.
+- Browser verification covers desktop and narrow layouts, scenario selection, source inspection and focus
+  restoration, question navigation, replay playback, timelines and updates. New releases offer explicit refresh;
+  service interruptions preserve the readable account.
 
-This implementation task owns the observer at http://127.0.0.1:4317, rooted at ~/.local/share/situ-v2. It remains running so Scott can inspect the new workspace. Stop with `situ stop`; inspect runtime/process.json for the matching process identity. Review at the next Situ task or when this preview is no longer needed. Temporary test services and fixtures are removed after verification. Shared package caches are retained.
+The [publication reference](publication-example.jpg) uses synthetic observations and media.
 
-## Cutover boundaries
+## Integration boundaries
 
-The installed CLI points to ~/situ/dist/situ.mjs. Research execution uses the new `situ run` adapter around Lab's external runner. Old Lab native record reporting is deliberately not translated. Model attention still requires a harness or agent checkpoint (`situ next`); alarms queue obligations but do not launch model turns.
+New research uses `situ run` around Lab's external runner. Use a direct experiment command inside it; a second
+admission-owning command would acquire the same pool twice. Historical Lab outboxes are not translated into the new API.
+
+Claude project skills live under `.claude/skills` and point to the canonical `.agents/skills` instructions.
+A committed Lab checkout pins the Situ revision, installs dependencies and starts a co-located service.
+Neither project includes credentials, old campaigns, local databases, game policies or replay bytes in its setup state.
+
+Model attention still requires a harness or an agent checkpoint (`situ next`). Alarms and curator obligations queue
+work; they do not launch or interrupt a model. Publication validation establishes structural consistency, source
+existence and comparison compatibility. Curators and reviewers judge whether prose accurately explains the evidence.
+See [publishing](../docs/publishing.md) and [operations](../docs/operations.md).
