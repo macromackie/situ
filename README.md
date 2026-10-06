@@ -1,52 +1,39 @@
 # Situ
 
-A local research workspace for humans and agents. Track questions, experiments, runs, findings, and evidence
-without prescribing an agent hierarchy or research method. A live dashboard makes the shared record easy to follow.
+A small research workspace for agents and the humans following their work.
 
-## Run locally
+Projects set a goal and focus. Topics organize questions and discussion. Work preserves predictions, evidence, ownership and recovery notes. Independent reviews turn proposed interpretations into scoped conclusions.
+
+Curators publish a separate human account: an overview, focused questions, figures and meaningful updates, all linked to pinned evidence. The main UI reads these publications; operational records remain under Inspect.
+
+## Run
 
 ```sh
+mise trust
 mise install
-mise exec -- pnpm install --frozen-lockfile
-mise exec -- pnpm build
-mise exec -- pnpm start
+pnpm install --frozen-lockfile
+pnpm build
+pnpm start
 ```
 
-Open <http://127.0.0.1:4317>. In another terminal, `mise exec -- pnpm demo` creates a synthetic example project.
-The demo makes no claim about paintbot performance. Create a separate project for actual research.
+The observer opens at **http://127.0.0.1:4317**. celld **0.6.1** persists the workspace locally. `pnpm install:cli` installs `situ` into `~/.local/bin`.
 
-`SITU_PORT` changes the server port. `SITU_DATA_DIR` changes the storage directory.
-`SITU_URL` points CLI commands at another local instance. Defaults: port 4317 and `~/.local/share/situ`.
-Stop with Ctrl-C. Rebuild and restart after source changes. The same data directory preserves research across
-restarts and factory/product checkouts. Run only one server per data directory.
-
-All records, saved revisions, and measurements are local in celld's `.celld/dev` below the data directory.
-Artifact entries reference existing files or URLs. Situ verifies bounded `table/v1` previews against their recorded
-SHA-256 when opened; it does not copy artifact storage into the database.
-Stop the service before copying its complete data directory for a physical backup. Never use celld's `--clean` on research data.
-
-The server binds to loopback and checks request host and browser origin. It is a trusted, single-user local app,
-with no multi-user authentication or remote deployment mode. No Cloudflare account is involved.
-
-## Agent interface
+- [First research workflow](docs/agent-workflow.md): create a project, join workers, run a probe, review evidence.
+- [Publishing](docs/publishing.md): curator workflow, typed datasets, media and source validation.
+- [Operations](docs/operations.md): recovery, backups, credentials and runner setup.
+- [Architecture](.context/architecture.md): boundaries and deliberate limits.
+- [Agent skills](.agents/skills/situ/SKILL.md): worker, coordinator, reviewer and curator responsibilities.
+- [Contracts](.contracts/index.md): invariants and checks.
 
 ```sh
-pnpm situ schema
-pnpm situ command command.json
-pnpm situ snapshot
-pnpm situ context PROJECT_ID "observation history"
-pnpm situ record RECORD_ID
-pnpm situ changes 0 RECORD_ID
+mise run check
+SITU_LAB=/path/to/macromackie-lab pnpm test:live
 ```
 
-Commands require explicit `requestId` and `actor` fields. Retry uncertain writes with exactly the same command and ID.
-Updates require the observed `revision`; a 409 means read and reconcile before submitting another command.
-See [docs/api.md](docs/api.md) and the [research skill](.agents/skills/research-with-situ/SKILL.md).
+The live check creates its own runtime, exercises celld persistence and 30 concurrent sessions, and deletes that runtime afterward. With SITU_LAB it also runs a real captured probe through Lab and checks supervised session exit.
 
-Experiment pages show linked batches and their individual evaluation outcomes. Choose runs and an exact metric/cohort
-to compare them; different methods inside one experiment stay separate. Tables link back to saved checkpoint revisions.
+Runtime state lives in `~/.local/share/situ-v2` by default, separate from source. Use `SITU_HOME`, `SITU_URL` and an explicit per-agent `SITU_SESSION` to select another workspace. Never reuse a session or pending write against a different workspace.
 
-## Development
+## Component reference
 
-Run `pnpm check` for types, formatting, persistence tests, and the production build.
-This repository is a selected product export. Development context and concurrency evaluations remain in the Factory.
+`pnpm storybook` serves the synthetic publication examples at http://127.0.0.1:6143. `pnpm build:storybook` checks the production bundle. To populate a disposable runtime, start it with its own `SITU_HOME` and port, then run `SITU_HOME=... SITU_URL=... pnpm exec tsx scripts/seed-example.ts`. The fixture is explicitly synthetic; keep it out of a research workspace.

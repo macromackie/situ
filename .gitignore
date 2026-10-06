@@ -1,5 +1,6 @@
 node_modules/
 dist/
-.situ/
-.DS_Store
-.config/*.local
+.celld/
+.dev.vars
+*.log
+storybook-static/

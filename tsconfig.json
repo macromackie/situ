@@ -1,15 +1,15 @@
 {
   "compilerOptions": {
     "target": "ES2023",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "jsx": "react-jsx",
     "strict": true,
-    "skipLibCheck": true,
     "noEmit": true,
-    "allowImportingTsExtensions": true,
-    "types": ["node", "@cloudflare/workers-types"]
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"]
   },
-  "include": ["workspaces", "scripts"]
+  "include": ["src", "scripts", "tests", "stories", ".storybook"]
 }
